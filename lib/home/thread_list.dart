@@ -65,6 +65,26 @@ class ThreadList extends HookWidget {
                 itemBuilder: (_, index) => index >= count
                     ? MoreThreads(key: UniqueKey())
                     : ThreadTile(key: ValueKey(index), index),
+                itemExtentBuilder: (index, dimensions) {
+                  if (index >= count) return 4;
+                  final style = DefaultTextStyle.of(context).style;
+                  final thread = cloud.threads[index];
+                  double height = 16;
+                  height += estimateTextSize(
+                    thread.sender,
+                    style.merge(senderTextStyle),
+                    maxWidth: dimensions.crossAxisExtent - 32,
+                  ).height;
+                  height += 4;
+                  height += estimateTextSize(
+                    thread.subject,
+                    style.merge(mainTextStyle),
+                    maxWidth: dimensions.crossAxisExtent - 32,
+                  ).height;
+                  height += 16;
+                  height += 1;
+                  return height;
+                },
               ),
             ),
           ),
@@ -91,15 +111,7 @@ class MoreThreads extends HookWidget {
           cloud.loadMoreThreads();
         }
       },
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox.square(
-            dimension: 50,
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ),
+      child: LinearProgressIndicator(),
     );
   }
 }
@@ -115,28 +127,22 @@ class ThreadTile extends HookWidget {
     final home = Modular.get<HomeStore>();
     final cloud = Modular.get<CloudService>();
     final thread = cloud.threads[index];
-    final number = home.getThreadTile(cloud.currentThread['num']);
-    final selected = thread['num'] == number;
+    final num = home.getThreadTile(cloud.currentThread.num);
+    final selected = thread.num == num;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
         : index % 2 == 0
-        ? colorScheme.secondary.withValues(alpha: 0.1)
-        : colorScheme.tertiary.withValues(alpha: 0.1);
-    final date = DateTime.parse(
-      thread['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
-    ).toLocal();
-    final hot =
-        ((thread['hot'] ?? 0.0 as num) *
-                100.0 /
-                DateTime.now().difference(DateTime(2025, 10, 1)).inSeconds)
-            .round();
-    final link = '/${thread['group']}/${thread['num']}';
+        ? colorScheme.secondary.withValues(alpha: 0.16)
+        : colorScheme.tertiary.withValues(alpha: 0.16);
+    final date = thread.date;
+    final hot = (thread.hot * 100.0 / hotRef).round();
+    final link = '/${thread.group}/${thread.num}';
     useListenable(home.currentThreadTile);
     return Link(
       uri: Uri.parse(link),
       builder: (_, follow) => InkWell(
         onTap: () => follow?.call().whenComplete(
-          () => home.updateThreadTile(thread['num']),
+          () => home.updateThreadTile(thread.num),
         ),
         child: Container(
           color: color,
@@ -147,39 +153,23 @@ class ThreadTile extends HookWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      ((thread['sender'] ?? 'Null') as String).trim(),
-                      style: TextStyle(color: Colors.blueAccent, fontSize: 14),
-                    ),
+                    Text(thread.sender, style: senderTextStyle),
                     const SizedBox(width: 8),
                     TooltipVisibility(
                       visible: date.relative != date.format,
                       child: Tooltip(
                         message: date.format,
-                        child: Text(
-                          date.relative,
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
+                        child: Text(date.relative, style: subTextStyle),
                       ),
                     ),
                     Spacer(),
-                    if (hot > 0)
-                      Text(
-                        '🔥$hot',
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
-                      ),
+                    if (hot > 0) Text('🔥$hot', style: subTextStyle),
                     const SizedBox(width: 16),
-                    Text(
-                      '💬${thread['total'] ?? 1}',
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
+                    Text('💬${thread.total}', style: subTextStyle),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  ((thread['subject'] ?? 'Null') as String).trim(),
-                  style: TextStyle(fontSize: 18),
-                ),
+                Text(thread.subject, style: mainTextStyle),
               ],
             ),
           ),

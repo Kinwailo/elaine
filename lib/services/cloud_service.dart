@@ -1,18 +1,17 @@
 import 'package:flutter/foundation.dart';
 
+import 'models.dart';
+
 typedef RowData = Map<String, dynamic>;
-typedef RowDatas = List<RowData>;
-typedef RowDataListenable = MapListenable<String, dynamic>;
-typedef RowDataNotifier = MapNotifier<String, dynamic>;
 
 abstract class CloudService {
-  ListListenable<RowData> get currentGroups;
-  RowDataListenable get currentThread;
-  RowDataListenable get currentPost;
+  ListListenable<GroupData> get currentGroups;
+  ThreadDataListenable get currentThread;
+  PostDataListenable get currentPost;
 
-  ListListenable<RowData> get threads;
+  ListListenable<ThreadData> get threads;
   bool get noMoreThreads;
-  ListListenable<RowData> get posts;
+  ListListenable<PostData> get posts;
   bool get noMorePosts;
 
   Future<void> selectGroups(List<String> groups);
@@ -23,7 +22,7 @@ abstract class CloudService {
   Future<void> selectPost(String msgid);
   void refreshPosts();
   Future<void> loadMorePosts();
-  Future<RowData?> getQuote(int index);
+  Future<PostData?> getQuote(int index);
   Future<Uint8List> getFile(String id);
 }
 

@@ -3,14 +3,7 @@ import 'package:appwrite/enums.dart';
 import 'package:flutter/foundation.dart';
 
 import 'cloud_service.dart';
-
-class ThreadData {
-  final group = ValueNotifier<String?>(null);
-  final number = ValueNotifier<int?>(null);
-  final msgid = ValueNotifier<String?>(null);
-  final listTile = ValueNotifier<int?>(null);
-  final title = ValueNotifier<String>('');
-}
+import 'models.dart';
 
 class AppWrite extends CloudService {
   final client = Client()
@@ -24,28 +17,28 @@ class AppWrite extends CloudService {
   final _itemsPreFetch = 25;
 
   @override
-  ListListenable<RowData> get currentGroups => _currentGroups;
-  final _currentGroups = ListNotifier<RowData>([]);
+  ListListenable<GroupData> get currentGroups => _currentGroups;
+  final _currentGroups = ListNotifier<GroupData>([]);
 
   @override
-  ListListenable<RowData> get threads => _threads;
-  final _threads = ListNotifier<RowData>([]);
+  ListListenable<ThreadData> get threads => _threads;
+  final _threads = ListNotifier<ThreadData>([]);
   @override
   bool get noMoreThreads => _noMoreThreads;
   var _noMoreThreads = false;
   @override
-  RowDataListenable get currentThread => _currentThread;
-  final _currentThread = RowDataNotifier({});
+  ThreadDataListenable get currentThread => _currentThread;
+  final _currentThread = ThreadDataNotifier(ThreadData({}));
 
   @override
-  ListListenable<RowData> get posts => _posts;
-  final _posts = ListNotifier<RowData>([]);
+  ListListenable<PostData> get posts => _posts;
+  final _posts = ListNotifier<PostData>([]);
   @override
   bool get noMorePosts => _noMorePosts;
   var _noMorePosts = false;
   @override
-  RowDataListenable get currentPost => _currentPost;
-  final _currentPost = RowDataNotifier({});
+  PostDataListenable get currentPost => _currentPost;
+  final _currentPost = PostDataNotifier(PostData({}));
 
   String? _cursorThreads;
   String? _cursorPosts;
@@ -56,23 +49,24 @@ class AppWrite extends CloudService {
 
   @override
   Future<void> selectGroups(List<String> groups) async {
+    if (groups.isEmpty) return;
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'groups',
       queries: [Query.equal('group', groups), Query.limit(groups.length)],
     );
     if (rows.rows.isNotEmpty) {
-      _currentGroups.value = rows.rows.map((e) => e.data).toList();
+      _currentGroups.value = rows.rows.map((e) => GroupData(e.data)).toList();
     }
   }
 
   @override
   Future<void> refreshGroups() async {
-    final groups = <String, RowData>{
-      for (var e in currentGroups.value) e['group']: e,
+    final groups = <String, GroupData>{
+      for (var e in currentGroups.value) e.group: e,
     };
     final channels = groups.values
-        .map((e) => e[r'$id'])
+        .map((e) => e.id)
         .map((e) => 'databases.elaine.tables.groups.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
 
@@ -96,9 +90,9 @@ class AppWrite extends CloudService {
     refreshThreads();
   }
 
-  Future<RowDatas> _getThreads() async {
+  Future<List<ThreadData>> _getThreads() async {
     if (currentGroups.isEmpty) return [];
-    final groups = currentGroups.value.map<String>((e) => e['group']).toList();
+    final groups = currentGroups.value.map<String>((e) => e.group).toList();
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'threads',
@@ -112,13 +106,13 @@ class AppWrite extends CloudService {
     if (rows.rows.isNotEmpty) {
       _cursorThreads = rows.rows[rows.rows.length - 1].$id;
     }
-    return rows.rows.map((e) => e.data).toList();
+    return rows.rows.map((e) => ThreadData(e.data)).toList();
   }
 
   @override
-  Future<void> selectThread(String group, int number) async {
+  Future<void> selectThread(String group, int num) async {
     var thread = threads.value
-        .where((e) => e['group'] == group && e['num'] == number)
+        .where((e) => e.group == group && e.num == num)
         .firstOrNull;
     if (thread == null) {
       final rows = await tablesDB.listRows(
@@ -126,14 +120,14 @@ class AppWrite extends CloudService {
         tableId: 'threads',
         queries: [
           Query.equal('group', group),
-          Query.equal('num', number),
+          Query.equal('num', num),
           Query.limit(1),
         ],
       );
-      if (rows.rows.isNotEmpty) thread = rows.rows[0].data;
+      if (rows.rows.isNotEmpty) thread = ThreadData(rows.rows[0].data);
     }
     if (thread == null) return;
-    if (currentThread['num'] != number) refreshPosts();
+    if (currentThread.num != num) refreshPosts();
     _currentThread.value = thread;
   }
 
@@ -153,12 +147,12 @@ class AppWrite extends CloudService {
     _threads.addAll(items);
   }
 
-  Future<RowDatas> _getPosts() async {
+  Future<List<PostData>> _getPosts() async {
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
-        Query.equal('thread', currentThread['msgid']),
+        Query.equal('thread', currentThread.msgid),
         Query.orderAsc('num'),
         Query.limit(_itemsPreFetch),
         if (_cursorPosts != null) Query.cursorAfter(_cursorPosts!),
@@ -167,7 +161,7 @@ class AppWrite extends CloudService {
     if (rows.rows.isNotEmpty) {
       _cursorPosts = rows.rows[rows.rows.length - 1].$id;
     }
-    return rows.rows.map((e) => e.data).toList();
+    return rows.rows.map((e) => PostData(e.data)).toList();
   }
 
   @override
@@ -190,20 +184,20 @@ class AppWrite extends CloudService {
   }
 
   @override
-  Future<RowData?> getQuote(int index) async {
-    RowData? quote;
+  Future<PostData?> getQuote(int index) async {
+    PostData? quote;
     final post = posts.value[index];
-    final ref = post['ref'] as List;
+    final ref = post.ref as List;
     if (index == 0 || ref.isEmpty) return quote;
-    if (posts.value[index - 1]['msgid'] == ref.last) return quote;
-    quote = posts.value.where((e) => e['msgid'] == ref.last).firstOrNull;
+    if (posts.value[index - 1].msgid == ref.last) return quote;
+    quote = posts.value.where((e) => e.msgid == ref.last).firstOrNull;
     if (quote == null) {
       var rows = await tablesDB.listRows(
         databaseId: 'elaine',
         tableId: 'posts',
         queries: [Query.equal('msgid', ref.last), Query.limit(1)],
       );
-      if (rows.rows.isNotEmpty) quote = rows.rows[0].data;
+      if (rows.rows.isNotEmpty) quote = PostData(rows.rows[0].data);
     }
     return quote;
   }

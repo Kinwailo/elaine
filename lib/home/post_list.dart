@@ -1,3 +1,4 @@
+import 'package:elaine/services/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -21,7 +22,7 @@ class PostList extends HookWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          cloud.currentThread['subject'] ?? '',
+          cloud.currentThread.subject,
           overflow: TextOverflow.ellipsis,
         ),
         bottom: const PreferredSize(
@@ -62,14 +63,9 @@ class MorePosts extends HookWidget {
           appwrite.loadMorePosts();
         }
       },
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox.square(
-            dimension: 50,
-            child: CircularProgressIndicator(),
-          ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
+        child: LinearProgressIndicator(),
       ),
     );
   }
@@ -85,15 +81,11 @@ class PostTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final cloud = Modular.get<CloudService>();
     final post = cloud.posts.value[index];
-    final date = DateTime.parse(
-      post['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
-    ).toLocal();
-    final text = ((post['text'] ?? '') as String).stripAll;
     final quote = useMemoized(() => futureToNotifier(cloud.getQuote(index)), [
       post,
     ]);
     final files = useMemoized(
-      () => ((post['files'] ?? []) as List)
+      () => post.files
           .map((e) => cloud.getFile(e))
           .map((e) => futureToNotifier(e))
           .toList(),
@@ -112,39 +104,27 @@ class PostTile extends HookWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    ((post['sender'] ?? 'Null') as String).trim(),
-                    style: TextStyle(color: Colors.blueAccent, fontSize: 14),
-                  ),
+                  Text(post.sender, style: senderTextStyle),
                   const SizedBox(width: 8),
                   TooltipVisibility(
-                    visible: date.relative != date.format,
+                    visible: post.date.relative != post.date.format,
                     child: Tooltip(
-                      message: date.format,
-                      child: Text(
-                        date.relative,
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
-                      ),
+                      message: post.date.format,
+                      child: Text(post.date.relative, style: subTextStyle),
                     ),
                   ),
                   Spacer(),
-                  Text(
-                    '#${index + 1}',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
+                  Text('#${index + 1}', style: subTextStyle),
                 ],
               ),
               const SizedBox(height: 8),
               if (quote.value != null)
-                Text(
-                  ((quote.value!['sender'] ?? 'Null') as String).trim(),
-                  style: TextStyle(fontSize: 18),
-                ),
+                Text(quote.value!.sender, style: senderTextStyle),
               if (quote.value != null) const SizedBox(height: 8),
-              if (post['text'] == null)
-                Text('文章正從新聞組同步中…', style: TextStyle(fontSize: 18))
-              else if (text.isNotEmpty)
-                Text(text, style: TextStyle(fontSize: 18)),
+              if (post.text == null)
+                Text(syncBodyText, style: mainTextStyle)
+              else if (post.text!.isNotEmpty)
+                Text(post.text!.stripAll, style: mainTextStyle),
               if (files.isNotEmpty)
                 ...files.map(
                   (e) => e.value == null
