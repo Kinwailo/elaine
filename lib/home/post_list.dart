@@ -1,11 +1,10 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../app/string_utils.dart';
 import '../app/utils.dart';
-import '../services/cloud_service.dart';
 import 'home_store.dart';
 
 class PostList extends HookWidget {
@@ -15,16 +14,16 @@ class PostList extends HookWidget {
   Widget build(BuildContext context) {
     const Key centerKey = ValueKey('centerKey');
     final home = Modular.get<HomeStore>();
-    final cloud = Modular.get<CloudService>();
-    final count = cloud.posts.length;
-    final extra = cloud.noMorePosts ? 0 : 1;
+    final count = home.posts.length;
+    final extra = home.noMorePosts ? 0 : 1;
     final controller = useMemoized(() => ScrollController());
-    useListenable(cloud.posts);
-    useListenable(home.allPostQuoteListenable);
+    useListenable(home.posts);
+    useListenable(home.allQuotesListenable);
+    useListenable(home.allImagesListenable);
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          cloud.currentThread.subject,
+          home.currentThread.subject,
           overflow: TextOverflow.ellipsis,
         ),
         bottom: const PreferredSize(
@@ -53,7 +52,7 @@ class PostList extends HookWidget {
                   if (index > count) return null;
                   if (index == count) return 8;
                   final style = DefaultTextStyle.of(context).style;
-                  final post = cloud.posts[index];
+                  final post = home.posts[index];
                   double height = 18;
                   height += estimateTextHeight(
                     post.sender,
@@ -61,7 +60,7 @@ class PostList extends HookWidget {
                     maxWidth: dimensions.crossAxisExtent - 40,
                   );
                   height += 8;
-                  final quote = home.getPostQuote(index);
+                  final quote = home.getQuoteNotifier(index);
                   if (quote.value != null) {
                     height += estimateTextHeight(
                       quote.value!.sender,
@@ -69,13 +68,28 @@ class PostList extends HookWidget {
                       maxWidth: dimensions.crossAxisExtent - 40,
                     );
                     height += 8;
+                    height += 48;
                   }
                   height += estimateTextHeight(
                     post.text ?? syncBodyText,
                     style.merge(mainTextStyle),
                     maxWidth: dimensions.crossAxisExtent - 40,
                   );
-                  height += 18;
+                  final images = home.getFilesNotifier(index);
+                  if (images.isNotEmpty) {
+                    height +=
+                        images.map((e) => e.value?.size ?? Size(50, 50)).map((
+                          e,
+                        ) {
+                          if (e.width <= 600) {
+                            return e.height;
+                          } else {
+                            return 600.0 / e.width * e.height;
+                          }
+                        }).sum -
+                        25;
+                  }
+                  height += 18 - 2;
                   return height;
                 },
               ),
@@ -92,14 +106,14 @@ class MorePosts extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appwrite = Modular.get<CloudService>();
+    final home = Modular.get<HomeStore>();
     final loaded = useState(false);
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          appwrite.loadMorePosts();
+          home.loadMorePosts();
         }
       },
       child: Padding(
@@ -119,19 +133,12 @@ class PostTile extends HookWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
-    final cloud = Modular.get<CloudService>();
-    final post = cloud.posts[index];
-    final quote = home.getPostQuote(index);
-    home.setPostQuote(index, useMemoized(() => cloud.getQuote(index), [post]));
-    final files = home.getPostFiles(index);
-    home.setPostFiles(
-      index,
-      useMemoized(() => post.files.map((e) => cloud.getFile(e)).toList(), [
-        post,
-      ]),
-    );
+    final post = home.posts[index];
+    final quote = useMemoized(() => home.setQuoteNotifier(index), [post]);
+    final files = useMemoized(() => home.setFilesNotifier(index), [post]);
+    useMemoized(() => home.setQuoteNotifier(index), [post]);
     useListenable(quote);
-    useListenable(Listenable.merge(home.getPostFiles(index)));
+    useListenable(Listenable.merge(home.getFilesNotifier(index)));
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -158,12 +165,44 @@ class PostTile extends HookWidget {
               ),
               const SizedBox(height: 8),
               if (quote.value != null)
-                Text(quote.value!.sender, style: senderTextStyle),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: EdgeInsetsGeometry.all(4),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHigh,
+                        border: Border(
+                          left: BorderSide(
+                            color: colorScheme.tertiaryFixedDim,
+                            width: 4,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Text.rich(
+                        TextSpan(
+                          text: quote.value!.sender,
+                          style: senderTextStyle,
+                          children: [
+                            WidgetSpan(child: SizedBox(width: 4)),
+                            TextSpan(
+                              text: quote.value!.text ?? syncBodyText,
+                              style: subTextStyle,
+                            ),
+                          ],
+                        ),
+                        maxLines: 3,
+                      ),
+                    ),
+                  ],
+                ),
               if (quote.value != null) const SizedBox(height: 8),
               if (post.text == null)
                 Text(syncBodyText, style: mainTextStyle)
               else if (post.text!.isNotEmpty)
-                Text(post.text!.stripAll, style: mainTextStyle),
+                Text(post.text!, style: mainTextStyle),
               if (files.isNotEmpty)
                 ...files.map(
                   (e) => e.value == null
@@ -176,7 +215,7 @@ class PostTile extends HookWidget {
                       : Align(
                           alignment: AlignmentGeometry.centerLeft,
                           child: Image.memory(
-                            e.value!,
+                            e.value!.data,
                             width: 600,
                             fit: BoxFit.cover,
                           ),

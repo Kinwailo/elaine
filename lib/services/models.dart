@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../app/string_utils.dart';
 import 'cloud_service.dart';
 
 class GroupData {
@@ -68,7 +69,7 @@ class PostData {
     : id = (data['\$id'] ?? '') as String,
       thread = (data['thread'] ?? '') as String,
       sender = ((data['sender'] ?? 'Null') as String).trim(),
-      text = data['text'] as String?,
+      text = (data['text'] as String?)?.stripAll,
       html = (data['html'] ?? false) as bool,
       textFile = data['textFile'] as String?,
       files = ((data['files'] ?? []) as List).map((e) => e as String).toList(),
@@ -92,7 +93,7 @@ abstract class ThreadDataListenable extends Listenable {
   int get total;
   DateTime get latest;
   DateTime get date;
-  int get num;
+  int get number;
   String get msgid;
 }
 
@@ -117,7 +118,7 @@ class ThreadDataNotifier extends ValueNotifier<ThreadData>
   @override
   DateTime get date => value.date;
   @override
-  int get num => value.number;
+  int get number => value.number;
   @override
   String get msgid => value.msgid;
 }
@@ -134,7 +135,7 @@ abstract class PostDataListenable extends Listenable {
   String? get textFile;
   List<String> get files;
   DateTime get date;
-  int get num;
+  int get number;
   String get msgid;
   List<String> get ref;
 }
@@ -160,7 +161,7 @@ class PostDataNotifier extends ValueNotifier<PostData>
   @override
   DateTime get date => value.date;
   @override
-  int get num => value.number;
+  int get number => value.number;
   @override
   String get msgid => value.msgid;
   @override

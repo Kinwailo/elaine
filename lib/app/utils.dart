@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -16,6 +19,15 @@ ValueNotifier<T?> futureToNotifier<T>(Future<T> future, {T? initialValue}) {
     notifier.value = value;
   });
   return notifier;
+}
+
+Future<ui.Size> getImageSize(Uint8List data) async {
+  final buffer = await ui.ImmutableBuffer.fromUint8List(data);
+  final descriptor = await ui.ImageDescriptor.encoded(buffer);
+  final size = Size(descriptor.width.toDouble(), descriptor.height.toDouble());
+  descriptor.dispose();
+  buffer.dispose();
+  return size;
 }
 
 extension DateCasting on DateTime {
@@ -69,7 +81,11 @@ class ListNotifier<T> extends ValueNotifier<List<T>>
     value = [];
   }
 
-  void addAll(Iterable<T> items) {
+  void prepend(Iterable<T> items) {
+    value = [...items, ...value];
+  }
+
+  void append(Iterable<T> items) {
     value = [...value, ...items];
   }
 }

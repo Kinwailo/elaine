@@ -5,7 +5,6 @@ import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/utils.dart';
-import '../services/cloud_service.dart';
 import 'home_store.dart';
 
 class ThreadList extends HookWidget {
@@ -13,11 +12,11 @@ class ThreadList extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cloud = Modular.get<CloudService>();
-    final count = cloud.threads.length;
-    final extra = cloud.noMoreThreads ? 0 : 1;
+    final home = Modular.get<HomeStore>();
+    final count = home.threads.length;
+    final extra = home.noMoreThreads ? 0 : 1;
     final controller = useMemoized(() => ScrollController());
-    useListenable(cloud.threads);
+    useListenable(home.threads);
     return Row(
       children: [
         SizedBox(
@@ -42,7 +41,7 @@ class ThreadList extends HookWidget {
                 ),
                 IconButton(
                   onPressed: () {
-                    cloud.refreshGroups();
+                    home.refreshGroups();
                   },
                   icon: Icon(Icons.refresh),
                   style: IconButton.styleFrom(
@@ -69,7 +68,7 @@ class ThreadList extends HookWidget {
                   if (index > count) return null;
                   if (index == count) return 4;
                   final style = DefaultTextStyle.of(context).style;
-                  final thread = cloud.threads[index];
+                  final thread = home.threads[index];
                   double height = 16;
                   height += estimateTextHeight(
                     thread.sender,
@@ -101,14 +100,14 @@ class MoreThreads extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cloud = Modular.get<CloudService>();
+    final home = Modular.get<HomeStore>();
     final loaded = useState(false);
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          cloud.loadMoreThreads();
+          home.loadMoreThreads();
         }
       },
       child: LinearProgressIndicator(),
@@ -125,10 +124,9 @@ class ThreadTile extends HookWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
-    final cloud = Modular.get<CloudService>();
-    final thread = cloud.threads[index];
-    final num = home.getThreadTile(cloud.currentThread.num);
-    final selected = thread.number == num;
+    final thread = home.threads[index];
+    final number = home.getThreadTile(home.currentThread.number);
+    final selected = thread.number == number;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
         : index % 2 == 0

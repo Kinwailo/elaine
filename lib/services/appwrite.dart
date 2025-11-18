@@ -2,7 +2,6 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/enums.dart';
 import 'package:flutter/foundation.dart';
 
-import '../app/utils.dart';
 import 'cloud_service.dart';
 import 'models.dart';
 
@@ -15,64 +14,30 @@ class AppWrite extends CloudService {
   late final functions = Functions(client);
   late final realtime = Realtime(client);
 
-  static const _itemsPreFetch = 25;
-
   @override
-  ListListenable<GroupData> get currentGroups => _currentGroups;
-  final _currentGroups = ListNotifier<GroupData>([]);
-
-  @override
-  ListListenable<ThreadData> get threads => _threads;
-  final _threads = ListNotifier<ThreadData>([]);
-  @override
-  bool get noMoreThreads => _noMoreThreads;
-  var _noMoreThreads = false;
-  @override
-  ThreadDataListenable get currentThread => _currentThread;
-  final _currentThread = ThreadDataNotifier(ThreadData({}));
-
-  @override
-  ListListenable<PostData> get posts => _posts;
-  final _posts = ListNotifier<PostData>([]);
-  @override
-  bool get noMorePosts => _noMorePosts;
-  var _noMorePosts = false;
-  @override
-  PostDataListenable get currentPost => _currentPost;
-  final _currentPost = PostDataNotifier(PostData({}));
-
-  String? _cursorThreads;
-  String? _cursorPosts;
-
-  AppWrite() {
-    selectGroups(['general.chat']);
-  }
-
-  @override
-  Future<void> selectGroups(List<String> groups) async {
-    if (groups.isEmpty) return;
+  Future<List<GroupData>> getGroups(List<String> groups) async {
+    var result = <GroupData>[];
+    if (groups.isEmpty) return result;
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'groups',
       queries: [Query.equal('group', groups), Query.limit(groups.length)],
     );
     if (rows.rows.isNotEmpty) {
-      _currentGroups.value = rows.rows.map((e) => GroupData(e.data)).toList();
-      refreshThreads();
+      result = rows.rows.map((e) => GroupData(e.data)).toList();
     }
+    return result;
   }
 
   @override
-  Future<void> refreshGroups() async {
-    final groups = <String, GroupData>{
-      for (var e in currentGroups.value) e.group: e,
-    };
-    final channels = groups.values
+  Future<void> refreshGroups(List<GroupData> groups) async {
+    final map = <String, GroupData>{for (var e in groups) e.group: e};
+    final channels = map.values
         .map((e) => e.id)
         .map((e) => 'databases.elaine.tables.groups.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
 
-    for (var e in groups.keys) {
+    for (var e in map.keys) {
       functions.createExecution(
         functionId: 'elaine_worker',
         xasync: true,
@@ -82,126 +47,79 @@ class AppWrite extends CloudService {
       );
     }
 
-    final waiting = groups.keys.toSet();
+    final waiting = map.keys.toSet();
     await for (var response in subscription.stream) {
       final data = response.payload;
       waiting.remove(data['group']);
       if (waiting.isEmpty) break;
     }
     await subscription.close();
-    refreshThreads();
   }
 
-  Future<List<ThreadData>> _getThreads() async {
-    if (currentGroups.isEmpty) return [];
-    final groups = currentGroups.value.map<String>((e) => e.group).toList();
+  @override
+  Future<ThreadData?> getThread(String group, int number) async {
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'threads',
       queries: [
-        Query.equal('group', groups),
-        Query.orderDesc('date'),
-        Query.limit(_itemsPreFetch),
-        if (_cursorThreads != null) Query.cursorAfter(_cursorThreads!),
+        Query.equal('group', group),
+        Query.equal('num', number),
+        Query.limit(1),
       ],
     );
-    if (rows.rows.isNotEmpty) {
-      _cursorThreads = rows.rows[rows.rows.length - 1].$id;
-    }
+    if (rows.rows.isEmpty) return null;
+    return ThreadData(rows.rows[0].data);
+  }
+
+  @override
+  Future<List<ThreadData>> getThreads(
+    List<GroupData> groups,
+    int limit,
+    String? cursor,
+  ) async {
+    if (groups.isEmpty) return [];
+    final names = groups.map((e) => e.group).toList();
+    final rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'threads',
+      queries: [
+        Query.equal('group', names),
+        Query.orderDesc('date'),
+        Query.limit(limit),
+        if (cursor != null) Query.cursorAfter(cursor),
+      ],
+    );
     return rows.rows.map((e) => ThreadData(e.data)).toList();
   }
 
   @override
-  Future<void> selectThread(String group, int num) async {
-    var thread = threads.value
-        .where((e) => e.group == group && e.number == num)
-        .firstOrNull;
-    if (thread == null) {
-      final rows = await tablesDB.listRows(
-        databaseId: 'elaine',
-        tableId: 'threads',
-        queries: [
-          Query.equal('group', group),
-          Query.equal('num', num),
-          Query.limit(1),
-        ],
-      );
-      if (rows.rows.isNotEmpty) thread = ThreadData(rows.rows[0].data);
-    }
-    if (thread == null) return;
-    if (currentThread.num != num) refreshPosts();
-    _currentThread.value = thread;
+  Future<PostData?> getPost(String msgid) async {
+    var rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'posts',
+      queries: [Query.equal('msgid', msgid), Query.limit(1)],
+    );
+    if (rows.rows.isEmpty) return null;
+    return PostData(rows.rows[0].data);
   }
 
   @override
-  void refreshThreads() {
-    _cursorThreads = null;
-    _noMoreThreads = false;
-    _threads.clear();
-  }
-
-  @override
-  Future<void> loadMoreThreads() async {
-    if (_noMoreThreads) return;
-    var items = await _getThreads();
-    _noMoreThreads = items.isEmpty || items.length < _itemsPreFetch;
-    if (_noMoreThreads) _cursorThreads = null;
-    _threads.addAll(items);
-  }
-
-  Future<List<PostData>> _getPosts() async {
+  Future<List<PostData>> getPosts(
+    String msgid,
+    int limit,
+    String? cursor,
+  ) async {
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
-        Query.equal('thread', currentThread.msgid),
+        Query.equal('thread', msgid),
         Query.orderAsc('num'),
-        Query.limit(_itemsPreFetch),
-        if (_cursorPosts != null) Query.cursorAfter(_cursorPosts!),
+        Query.limit(limit),
+        if (cursor != null) Query.cursorAfter(cursor),
       ],
     );
-    if (rows.rows.isNotEmpty) {
-      _cursorPosts = rows.rows[rows.rows.length - 1].$id;
-    }
     return rows.rows.map((e) => PostData(e.data)).toList();
-  }
-
-  @override
-  Future<void> selectPost(String msgid) async {}
-
-  @override
-  void refreshPosts() {
-    _cursorPosts = null;
-    _noMorePosts = false;
-    _posts.clear();
-  }
-
-  @override
-  Future<void> loadMorePosts() async {
-    if (_noMorePosts) return;
-    var items = await _getPosts();
-    _noMorePosts = items.isEmpty || items.length < _itemsPreFetch;
-    if (_noMorePosts) _cursorPosts = null;
-    _posts.addAll(items);
-  }
-
-  @override
-  Future<PostData?> getQuote(int index) async {
-    PostData? quote;
-    final post = posts.value[index];
-    final ref = post.ref as List;
-    if (index == 0 || ref.isEmpty) return quote;
-    if (posts.value[index - 1].msgid == ref.last) return quote;
-    quote = posts.value.where((e) => e.msgid == ref.last).firstOrNull;
-    if (quote == null) {
-      var rows = await tablesDB.listRows(
-        databaseId: 'elaine',
-        tableId: 'posts',
-        queries: [Query.equal('msgid', ref.last), Query.limit(1)],
-      );
-      if (rows.rows.isNotEmpty) quote = PostData(rows.rows[0].data);
-    }
-    return quote;
   }
 
   @override

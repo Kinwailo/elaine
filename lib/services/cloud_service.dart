@@ -1,28 +1,25 @@
 import 'package:flutter/foundation.dart';
 
-import '../app/utils.dart';
 import 'models.dart';
 
 typedef RowData = Map<String, dynamic>;
 
 abstract class CloudService {
-  ListListenable<GroupData> get currentGroups;
-  ThreadDataListenable get currentThread;
-  PostDataListenable get currentPost;
+  Future<List<GroupData>> getGroups(List<String> groups);
 
-  ListListenable<ThreadData> get threads;
-  bool get noMoreThreads;
-  ListListenable<PostData> get posts;
-  bool get noMorePosts;
+  Future<void> refreshGroups(List<GroupData> groups);
 
-  Future<void> selectGroups(List<String> groups);
-  void refreshGroups();
-  Future<void> selectThread(String group, int number);
-  void refreshThreads();
-  Future<void> loadMoreThreads();
-  Future<void> selectPost(String msgid);
-  void refreshPosts();
-  Future<void> loadMorePosts();
-  Future<PostData?> getQuote(int index);
+  Future<ThreadData?> getThread(String group, int number);
+
+  Future<List<ThreadData>> getThreads(
+    List<GroupData> groups,
+    int limit,
+    String? cursor,
+  );
+
+  Future<PostData?> getPost(String msgid);
+
+  Future<List<PostData>> getPosts(String msgid, int limit, String? cursor);
+
   Future<Uint8List> getFile(String id);
 }

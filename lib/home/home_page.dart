@@ -11,8 +11,8 @@ import 'post_list.dart';
 class HomeModule extends Module {
   @override
   void binds(i) {
-    i.addSingleton(HomeStore.new);
     i.addSingleton<CloudService>(AppWrite.new);
+    i.addSingleton(HomeStore.new);
   }
 
   @override
@@ -34,9 +34,9 @@ class HomeModule extends Module {
         ChildRoute(
           '/:group',
           child: (_) {
-            final cloud = Modular.get<CloudService>();
+            final home = Modular.get<HomeStore>();
             final group = r.args.params['group'];
-            if (group != null) cloud.selectGroups([group]);
+            if (group != null) home.selectGroups([group]);
             return ThreadList();
           },
           transition: TransitionType.noTransition,
@@ -44,11 +44,11 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread',
               child: (_) {
-                final cloud = Modular.get<CloudService>();
+                final home = Modular.get<HomeStore>();
                 final group = r.args.params['group'];
                 final number = int.tryParse(r.args.params['thread']);
                 if (group != null && number != null) {
-                  cloud.selectThread(group, number);
+                  home.selectThread(group, number);
                 }
                 return PostList();
               },
