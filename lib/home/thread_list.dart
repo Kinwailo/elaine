@@ -1,10 +1,10 @@
-import 'package:elaine/app/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import 'home_store.dart';
 
@@ -66,23 +66,23 @@ class ThreadList extends HookWidget {
                     ? MoreThreads(key: UniqueKey())
                     : ThreadTile(key: ValueKey(index), index),
                 itemExtentBuilder: (index, dimensions) {
-                  if (index >= count) return 4;
+                  if (index > count) return null;
+                  if (index == count) return 4;
                   final style = DefaultTextStyle.of(context).style;
                   final thread = cloud.threads[index];
                   double height = 16;
-                  height += estimateTextSize(
+                  height += estimateTextHeight(
                     thread.sender,
                     style.merge(senderTextStyle),
                     maxWidth: dimensions.crossAxisExtent - 32,
-                  ).height;
+                  );
                   height += 4;
-                  height += estimateTextSize(
+                  height += estimateTextHeight(
                     thread.subject,
                     style.merge(mainTextStyle),
                     maxWidth: dimensions.crossAxisExtent - 32,
-                  ).height;
+                  );
                   height += 16;
-                  height += 1;
                   return height;
                 },
               ),
@@ -128,7 +128,7 @@ class ThreadTile extends HookWidget {
     final cloud = Modular.get<CloudService>();
     final thread = cloud.threads[index];
     final num = home.getThreadTile(cloud.currentThread.num);
-    final selected = thread.num == num;
+    final selected = thread.number == num;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
         : index % 2 == 0
@@ -136,13 +136,13 @@ class ThreadTile extends HookWidget {
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.date;
     final hot = (thread.hot * 100.0 / hotRef).round();
-    final link = '/${thread.group}/${thread.num}';
+    final link = '/${thread.group}/${thread.number}';
     useListenable(home.currentThreadTile);
     return Link(
       uri: Uri.parse(link),
       builder: (_, follow) => InkWell(
         onTap: () => follow?.call().whenComplete(
-          () => home.updateThreadTile(thread.num),
+          () => home.updateThreadTile(thread.number),
         ),
         child: Container(
           color: color,

@@ -1,4 +1,3 @@
-import 'package:elaine/services/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -7,18 +6,21 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
+import 'home_store.dart';
 
 class PostList extends HookWidget {
   const PostList({super.key});
 
   @override
   Widget build(BuildContext context) {
+    const Key centerKey = ValueKey('centerKey');
+    final home = Modular.get<HomeStore>();
     final cloud = Modular.get<CloudService>();
     final count = cloud.posts.length;
     final extra = cloud.noMorePosts ? 0 : 1;
     final controller = useMemoized(() => ScrollController());
     useListenable(cloud.posts);
-    useListenable(cloud.currentThread);
+    useListenable(home.allPostQuoteListenable);
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -35,13 +37,50 @@ class PostList extends HookWidget {
         thumbVisibility: true,
         trackVisibility: true,
         thickness: 8,
-        child: ListView.builder(
+        child: CustomScrollView(
+          center: centerKey,
           controller: controller,
-          padding: EdgeInsets.only(top: 2, right: 12, bottom: 2),
-          itemCount: count + extra,
-          itemBuilder: (_, index) => index >= count
-              ? MorePosts(key: UniqueKey())
-              : PostTile(key: ValueKey(index), index),
+          slivers: [
+            SliverPadding(
+              key: centerKey,
+              padding: EdgeInsets.only(top: 2, right: 12, bottom: 2),
+              sliver: SliverVariedExtentList.builder(
+                itemCount: count + extra,
+                itemBuilder: (_, index) => index >= count
+                    ? MorePosts(key: UniqueKey())
+                    : PostTile(key: ValueKey(index), index),
+                itemExtentBuilder: (index, dimensions) {
+                  if (index > count) return null;
+                  if (index == count) return 8;
+                  final style = DefaultTextStyle.of(context).style;
+                  final post = cloud.posts[index];
+                  double height = 18;
+                  height += estimateTextHeight(
+                    post.sender,
+                    style.merge(senderTextStyle),
+                    maxWidth: dimensions.crossAxisExtent - 40,
+                  );
+                  height += 8;
+                  final quote = home.getPostQuote(index);
+                  if (quote.value != null) {
+                    height += estimateTextHeight(
+                      quote.value!.sender,
+                      style.merge(senderTextStyle),
+                      maxWidth: dimensions.crossAxisExtent - 40,
+                    );
+                    height += 8;
+                  }
+                  height += estimateTextHeight(
+                    post.text ?? syncBodyText,
+                    style.merge(mainTextStyle),
+                    maxWidth: dimensions.crossAxisExtent - 40,
+                  );
+                  height += 18;
+                  return height;
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -79,20 +118,20 @@ class PostTile extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final home = Modular.get<HomeStore>();
     final cloud = Modular.get<CloudService>();
-    final post = cloud.posts.value[index];
-    final quote = useMemoized(() => futureToNotifier(cloud.getQuote(index)), [
-      post,
-    ]);
-    final files = useMemoized(
-      () => post.files
-          .map((e) => cloud.getFile(e))
-          .map((e) => futureToNotifier(e))
-          .toList(),
-      [post],
+    final post = cloud.posts[index];
+    final quote = home.getPostQuote(index);
+    home.setPostQuote(index, useMemoized(() => cloud.getQuote(index), [post]));
+    final files = home.getPostFiles(index);
+    home.setPostFiles(
+      index,
+      useMemoized(() => post.files.map((e) => cloud.getFile(e)).toList(), [
+        post,
+      ]),
     );
     useListenable(quote);
-    useListenable(Listenable.merge(files));
+    useListenable(Listenable.merge(home.getPostFiles(index)));
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -134,7 +173,14 @@ class PostTile extends HookWidget {
                             child: CircularProgressIndicator(),
                           ),
                         )
-                      : Image.memory(e.value!, fit: BoxFit.cover),
+                      : Align(
+                          alignment: AlignmentGeometry.centerLeft,
+                          child: Image.memory(
+                            e.value!,
+                            width: 600,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                 ),
             ],
           ),

@@ -7,7 +7,7 @@ class GroupData {
   final String id;
   final String group;
   final String name;
-  final int num;
+  final int number;
   final int total;
   final DateTime update;
 
@@ -15,7 +15,7 @@ class GroupData {
     : id = (data['\$id'] ?? '') as String,
       group = (data['group'] ?? 'Null') as String,
       name = (data['name'] ?? 'Null') as String,
-      num = (data['num'] ?? 0) as int,
+      number = (data['num'] ?? 0) as int,
       total = (data['total'] ?? 0) as int,
       update = DateTime.parse(
         data['update'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
@@ -31,7 +31,7 @@ class ThreadData {
   final int total;
   final DateTime latest;
   final DateTime date;
-  final int num;
+  final int number;
   final String msgid;
 
   ThreadData(RowData data)
@@ -39,7 +39,7 @@ class ThreadData {
       group = (data['group'] ?? '') as String,
       subject = ((data['subject'] ?? 'Null') as String).trim(),
       sender = ((data['sender'] ?? 'Null') as String).trim(),
-      hot = (data['hot'] ?? 0.0) as double,
+      hot = ((data['hot'] ?? 0.0) as num).toDouble(),
       total = (data['total'] ?? 1) as int,
       latest = DateTime.parse(
         data['latest'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
@@ -47,7 +47,7 @@ class ThreadData {
       date = DateTime.parse(
         data['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
       ).toLocal(),
-      num = (data['num'] ?? 0) as int,
+      number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String;
 }
 
@@ -60,7 +60,7 @@ class PostData {
   final String? textFile;
   final List<String> files;
   final DateTime date;
-  final int num;
+  final int number;
   final String msgid;
   final List<String> ref;
 
@@ -75,7 +75,7 @@ class PostData {
       date = DateTime.parse(
         data['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
       ).toLocal(),
-      num = (data['num'] ?? 0) as int,
+      number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String,
       ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList();
 }
@@ -117,7 +117,7 @@ class ThreadDataNotifier extends ValueNotifier<ThreadData>
   @override
   DateTime get date => value.date;
   @override
-  int get num => value.num;
+  int get num => value.number;
   @override
   String get msgid => value.msgid;
 }
@@ -160,7 +160,7 @@ class PostDataNotifier extends ValueNotifier<PostData>
   @override
   DateTime get date => value.date;
   @override
-  int get num => value.num;
+  int get num => value.number;
   @override
   String get msgid => value.msgid;
   @override

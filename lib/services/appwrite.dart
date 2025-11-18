@@ -2,6 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/enums.dart';
 import 'package:flutter/foundation.dart';
 
+import '../app/utils.dart';
 import 'cloud_service.dart';
 import 'models.dart';
 
@@ -14,7 +15,7 @@ class AppWrite extends CloudService {
   late final functions = Functions(client);
   late final realtime = Realtime(client);
 
-  final _itemsPreFetch = 25;
+  static const _itemsPreFetch = 25;
 
   @override
   ListListenable<GroupData> get currentGroups => _currentGroups;
@@ -57,6 +58,7 @@ class AppWrite extends CloudService {
     );
     if (rows.rows.isNotEmpty) {
       _currentGroups.value = rows.rows.map((e) => GroupData(e.data)).toList();
+      refreshThreads();
     }
   }
 
@@ -112,7 +114,7 @@ class AppWrite extends CloudService {
   @override
   Future<void> selectThread(String group, int num) async {
     var thread = threads.value
-        .where((e) => e.group == group && e.num == num)
+        .where((e) => e.group == group && e.number == num)
         .firstOrNull;
     if (thread == null) {
       final rows = await tablesDB.listRows(
