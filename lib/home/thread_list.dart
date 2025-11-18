@@ -61,9 +61,11 @@ class ThreadList extends HookWidget {
                 controller: controller,
                 padding: EdgeInsets.only(right: 12),
                 itemCount: count + extra,
-                itemBuilder: (_, index) => index >= count
-                    ? MoreThreads(key: UniqueKey())
-                    : ThreadTile(key: ValueKey(index), index),
+                itemBuilder: (_, index) {
+                  return index >= count
+                      ? MoreThreads(key: UniqueKey())
+                      : ThreadTile(key: ValueKey(home.threads[index]), index);
+                },
                 itemExtentBuilder: (index, dimensions) {
                   if (index > count) return null;
                   if (index == count) return 4;

@@ -45,9 +45,11 @@ class PostList extends HookWidget {
               padding: EdgeInsets.only(top: 2, right: 12, bottom: 2),
               sliver: SliverVariedExtentList.builder(
                 itemCount: count + extra,
-                itemBuilder: (_, index) => index >= count
-                    ? MorePosts(key: UniqueKey())
-                    : PostTile(key: ValueKey(index), index),
+                itemBuilder: (_, index) {
+                  return index >= count
+                      ? MorePosts(key: UniqueKey())
+                      : PostTile(key: ValueKey(home.posts[index]), index);
+                },
                 itemExtentBuilder: (index, dimensions) {
                   if (index > count) return null;
                   if (index == count) return 8;
@@ -60,22 +62,26 @@ class PostList extends HookWidget {
                     maxWidth: dimensions.crossAxisExtent - 40,
                   );
                   height += 8;
-                  final quote = home.getQuoteNotifier(index);
+                  final quote = home.getQuoteNotifier(post.msgid);
                   if (quote.value != null) {
                     height += estimateTextHeight(
-                      quote.value!.sender,
+                      '${quote.value!.sender}: ${quote.value?.text ?? syncBodyText}',
                       style.merge(senderTextStyle),
                       maxWidth: dimensions.crossAxisExtent - 40,
                     );
                     height += 8;
-                    height += 48;
+                    final qFiles = home.getFilesNotifier(quote.value!.msgid);
+                    if (qFiles.isNotEmpty) {
+                      height += 100;
+                    }
+                    height += 8;
                   }
                   height += estimateTextHeight(
                     post.text ?? syncBodyText,
                     style.merge(mainTextStyle),
                     maxWidth: dimensions.crossAxisExtent - 40,
                   );
-                  final images = home.getFilesNotifier(index);
+                  final images = home.getFilesNotifier(post.msgid);
                   if (images.isNotEmpty) {
                     height +=
                         images.map((e) => e.value?.size ?? Size(50, 50)).map((
@@ -134,11 +140,14 @@ class PostTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
-    final quote = useMemoized(() => home.setQuoteNotifier(index), [post]);
-    final files = useMemoized(() => home.setFilesNotifier(index), [post]);
-    useMemoized(() => home.setQuoteNotifier(index), [post]);
+    final keys = [post];
+    final quote = useMemoized(() => home.setQuoteNotifier(post.msgid), keys);
+    final files = useMemoized(() => home.setFilesNotifier(post.msgid), keys);
+    final qMsgid = quote.value?.msgid ?? '';
+    final qFiles = useMemoized(() => home.setFilesNotifier(qMsgid), keys);
     useListenable(quote);
-    useListenable(Listenable.merge(home.getFilesNotifier(index)));
+    useListenable(Listenable.merge(files));
+    useListenable(Listenable.merge(qFiles));
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -178,22 +187,44 @@ class PostTile extends HookWidget {
                             width: 4,
                             style: BorderStyle.solid,
                           ),
+                          right: BorderSide(
+                            color: colorScheme.tertiaryFixedDim,
+                            width: 0.5,
+                            style: BorderStyle.solid,
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text.rich(
-                        TextSpan(
-                          text: quote.value!.sender,
-                          style: senderTextStyle,
-                          children: [
-                            WidgetSpan(child: SizedBox(width: 4)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(
                             TextSpan(
-                              text: quote.value!.text ?? syncBodyText,
-                              style: subTextStyle,
+                              text: '${quote.value!.sender}: ',
+                              style: senderTextStyle,
+                              children: [
+                                TextSpan(
+                                  text: quote.value!.text ?? syncBodyText,
+                                  style: subTextStyle,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        maxLines: 3,
+                            maxLines: 3,
+                          ),
+                          if (qFiles.isNotEmpty)
+                            ...qFiles.map(
+                              (e) => e.value == null
+                                  ? SizedBox.square(
+                                      dimension: 50,
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : Image.memory(
+                                      e.value!.data,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    ),
+                            ),
+                        ],
                       ),
                     ),
                   ],

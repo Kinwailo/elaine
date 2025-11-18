@@ -50,7 +50,7 @@ class HomeStore {
   String? _cursorThreads;
   String? _cursorPosts;
 
-  final _postsTile = <PostData, PostTileData>{};
+  final _postsTile = <String, PostTileData>{};
 
   final currentThreadTile = ValueNotifier<int?>(null);
 
@@ -111,6 +111,7 @@ class HomeStore {
     _cursorPosts = null;
     _noMorePosts = false;
     _posts.clear();
+    _postsTile.clear();
   }
 
   Future<void> loadMorePosts() async {
@@ -127,7 +128,7 @@ class HomeStore {
     } else {
       _cursorPosts = items.last.id;
     }
-    _postsTile.addAll({for (var item in items) item: PostTileData(item)});
+    _postsTile.addAll({for (var item in items) item.msgid: PostTileData(item)});
     _posts.append(items);
   }
 
@@ -145,27 +146,38 @@ class HomeStore {
     return currentThreadTile.value;
   }
 
-  Future<PostData?> _getQuote(int index) async {
-    PostData? quote;
-    final post = posts[index];
-    final ref = post.ref as List;
-    if (index == 0 || ref.isEmpty) return quote;
-    if (posts[index - 1].msgid == ref.last) return quote;
-    quote = posts.value.where((e) => e.msgid == ref.last).firstOrNull;
+  PostData? _getPostByMsgid(String msgid) {
+    return _posts.value.where((e) => e.msgid == msgid).firstOrNull;
+  }
+
+  Future<PostData?> _getQuote(String msgid) async {
+    final post = _getPostByMsgid(msgid);
+    if (post == null || post.ref.isEmpty) return null;
+    PostData? previous;
+
+    for (var e in posts.value) {
+      if (e.msgid == post.msgid && previous?.msgid == post.ref.last) {
+        return null;
+      }
+      previous = e;
+    }
+    var quote = posts.value.where((e) => e.msgid == post.ref.last).firstOrNull;
     if (quote == null) {
       final cloud = Modular.get<CloudService>();
-      quote = await cloud.getPost(ref.last);
+      quote = await cloud.getPost(post.ref.last);
+      if (quote != null) _postsTile[quote.msgid] = PostTileData(quote);
     }
     return quote;
   }
 
-  ValueNotifier<PostData?> getQuoteNotifier(int index) {
-    return _postsTile[posts[index]]!.quote;
+  ValueNotifier<PostData?> getQuoteNotifier(String msgid) {
+    return _postsTile[msgid]!.quote;
   }
 
-  ValueNotifier<PostData?> setQuoteNotifier(int index) {
-    final quote = getQuoteNotifier(index);
-    _getQuote(index).then((value) {
+  ValueNotifier<PostData?> setQuoteNotifier(String msgid) {
+    final quote = getQuoteNotifier(msgid);
+    if (quote.value != null) return quote;
+    _getQuote(msgid).then((value) {
       quote.value = value;
     });
     return quote;
@@ -181,14 +193,18 @@ class HomeStore {
     return ImageData(data, size);
   }
 
-  List<ValueNotifier<ImageData?>> getFilesNotifier(int index) {
-    return _postsTile[posts[index]]!.images;
+  List<ValueNotifier<ImageData?>> getFilesNotifier(String msgid) {
+    return _postsTile[msgid]?.images ?? [];
   }
 
-  List<ValueNotifier<ImageData?>> setFilesNotifier(int index) {
-    final data = posts[index].files.map((e) => _getImageData(e)).toList();
-    final images = _postsTile[posts[index]]!.images;
-    var zipped = IterableZip([data, images]);
+  List<ValueNotifier<ImageData?>> setFilesNotifier(String msgid) {
+    final data = _getPostByMsgid(
+      msgid,
+    )?.files.map((e) => _getImageData(e)).toList();
+    final images = _postsTile[msgid]?.images;
+    if (data == null || images == null) return [];
+    if (images.any((e) => e.value != null)) return images;
+    final zipped = IterableZip([data, images]);
     for (var pair in zipped) {
       (pair[0] as Future<ImageData>).then((value) {
         (pair[1] as ValueNotifier<ImageData?>).value = value;
@@ -198,5 +214,5 @@ class HomeStore {
   }
 
   Listenable get allImagesListenable =>
-      Listenable.merge(_postsTile.values.map((e) => e.images).expand((e) => e));
+      Listenable.merge(_postsTile.values.map((e) => e.images).flattened);
 }
