@@ -95,7 +95,7 @@ class PostList extends HookWidget {
                         }).sum -
                         25;
                   }
-                  height += 18 - 2;
+                  height += 18;
                   return height;
                 },
               ),

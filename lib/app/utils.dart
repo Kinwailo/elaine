@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -22,12 +23,18 @@ ValueNotifier<T?> futureToNotifier<T>(Future<T> future, {T? initialValue}) {
 }
 
 Future<ui.Size> getImageSize(Uint8List data) async {
-  final buffer = await ui.ImmutableBuffer.fromUint8List(data);
-  final descriptor = await ui.ImageDescriptor.encoded(buffer);
-  final size = Size(descriptor.width.toDouble(), descriptor.height.toDouble());
-  descriptor.dispose();
-  buffer.dispose();
-  return size;
+  final completer = Completer<ui.Size>();
+  final image = Image.memory(data);
+  image.image
+      .resolve(ImageConfiguration())
+      .addListener(
+        ImageStreamListener(
+          (i, _) => completer.complete(
+            ui.Size(i.image.width.toDouble(), i.image.height.toDouble()),
+          ),
+        ),
+      );
+  return completer.future;
 }
 
 extension DateCasting on DateTime {

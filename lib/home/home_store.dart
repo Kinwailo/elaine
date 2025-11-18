@@ -198,12 +198,13 @@ class HomeStore {
   }
 
   List<ValueNotifier<ImageData?>> setFilesNotifier(String msgid) {
+    final images = _postsTile[msgid]?.images;
+    if (images == null) return [];
+    if (images.any((e) => e.value != null)) return images;
     final data = _getPostByMsgid(
       msgid,
     )?.files.map((e) => _getImageData(e)).toList();
-    final images = _postsTile[msgid]?.images;
-    if (data == null || images == null) return [];
-    if (images.any((e) => e.value != null)) return images;
+    if (data == null) return [];
     final zipped = IterableZip([data, images]);
     for (var pair in zipped) {
       (pair[0] as Future<ImageData>).then((value) {
