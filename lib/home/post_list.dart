@@ -69,7 +69,7 @@ class PostList extends HookWidget {
                     height += estimateTextHeight(
                       '${quote.value!.sender}: ${quote.value?.text ?? syncBodyText}',
                       style.merge(senderTextStyle),
-                      maxWidth: dimensions.crossAxisExtent - 40,
+                      maxWidth: dimensions.crossAxisExtent - 40 - 12.5,
                     );
                     height += 8;
                     final qFiles = home.getFilesNotifier(quote.value!.msgid);
