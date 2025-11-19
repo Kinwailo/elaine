@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -83,17 +85,18 @@ class PostList extends HookWidget {
                   );
                   final images = home.getFilesNotifier(post.msgid);
                   if (images.isNotEmpty) {
-                    height +=
-                        images.map((e) => e.value?.size ?? Size(50, 50)).map((
-                          e,
-                        ) {
-                          if (e.width <= 600) {
+                    final h = images
+                        .map((e) => e.value?.size ?? Size(50, 50))
+                        .map((e) {
+                          final w = min(600, dimensions.crossAxisExtent - 40);
+                          if (e.width <= w) {
                             return e.height;
                           } else {
-                            return 600.0 / e.width * e.height;
+                            return w / e.width * e.height;
                           }
-                        }).sum -
-                        25;
+                        })
+                        .sum;
+                    height += h - 25;
                   }
                   height += 18;
                   return height;
@@ -140,10 +143,11 @@ class PostTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
-    final keys = [post];
+    final keys = [post.msgid];
     final quote = useMemoized(() => home.setQuoteNotifier(post.msgid), keys);
     final files = useMemoized(() => home.setFilesNotifier(post.msgid), keys);
     final qMsgid = quote.value?.msgid ?? '';
+    keys.add(qMsgid);
     final qFiles = useMemoized(() => home.setFilesNotifier(qMsgid), keys);
     useListenable(quote);
     useListenable(Listenable.merge(files));

@@ -9,10 +9,11 @@ import '../app/utils.dart';
 import '../services/cloud_service.dart';
 
 class PostTileData {
+  final PostData data;
   late final ValueNotifier<PostData?> quote;
   late final List<ValueNotifier<ImageData?>> images;
 
-  PostTileData(PostData data) {
+  PostTileData(this.data) {
     quote = ValueNotifier<PostData?>(null);
     images = [];
     for (var _ in data.files) {
@@ -147,7 +148,8 @@ class HomeStore {
   }
 
   PostData? _getPostByMsgid(String msgid) {
-    return _posts.value.where((e) => e.msgid == msgid).firstOrNull;
+    final post = _posts.value.where((e) => e.msgid == msgid).firstOrNull;
+    return post ?? _postsTile[msgid]?.data;
   }
 
   Future<PostData?> _getQuote(String msgid) async {

@@ -57,35 +57,44 @@ class ThreadList extends HookWidget {
               thumbVisibility: true,
               trackVisibility: true,
               thickness: 8,
-              child: ListView.builder(
+              child: CustomScrollView(
                 controller: controller,
-                padding: EdgeInsets.only(right: 12),
-                itemCount: count + extra,
-                itemBuilder: (_, index) {
-                  return index >= count
-                      ? MoreThreads(key: UniqueKey())
-                      : ThreadTile(key: ValueKey(home.threads[index]), index);
-                },
-                itemExtentBuilder: (index, dimensions) {
-                  if (index > count) return null;
-                  if (index == count) return 4;
-                  final style = DefaultTextStyle.of(context).style;
-                  final thread = home.threads[index];
-                  double height = 16;
-                  height += estimateTextHeight(
-                    thread.sender,
-                    style.merge(senderTextStyle),
-                    maxWidth: dimensions.crossAxisExtent - 32,
-                  );
-                  height += 4;
-                  height += estimateTextHeight(
-                    thread.subject,
-                    style.merge(mainTextStyle),
-                    maxWidth: dimensions.crossAxisExtent - 32,
-                  );
-                  height += 16;
-                  return height;
-                },
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.only(right: 12),
+                    sliver: SliverVariedExtentList.builder(
+                      itemCount: count + extra,
+                      itemBuilder: (_, index) {
+                        return index >= count
+                            ? MoreThreads(key: UniqueKey())
+                            : ThreadTile(
+                                key: ValueKey(home.threads[index]),
+                                index,
+                              );
+                      },
+                      itemExtentBuilder: (index, dimensions) {
+                        if (index > count) return null;
+                        if (index == count) return 4;
+                        final style = DefaultTextStyle.of(context).style;
+                        final thread = home.threads[index];
+                        double height = 16;
+                        height += estimateTextHeight(
+                          thread.sender,
+                          style.merge(senderTextStyle),
+                          maxWidth: dimensions.crossAxisExtent - 32,
+                        );
+                        height += 4;
+                        height += estimateTextHeight(
+                          thread.subject,
+                          style.merge(mainTextStyle),
+                          maxWidth: dimensions.crossAxisExtent - 32,
+                        );
+                        height += 16;
+                        return height;
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -135,7 +144,7 @@ class ThreadTile extends HookWidget {
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.date;
-    final hot = (thread.hot * 100.0 / hotRef).round();
+    // final hot = (thread.hot * 100.0 / hotRef).round();
     final link = '/${thread.group}/${thread.number}';
     useListenable(home.currentThreadTile);
     return Link(
@@ -163,7 +172,7 @@ class ThreadTile extends HookWidget {
                       ),
                     ),
                     Spacer(),
-                    if (hot > 0) Text('🔥$hot', style: subTextStyle),
+                    // if (hot > 0) Text('🔥$hot', style: subTextStyle),
                     const SizedBox(width: 16),
                     Text('💬${thread.total}', style: subTextStyle),
                   ],
