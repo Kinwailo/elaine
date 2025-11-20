@@ -77,17 +77,18 @@ class ThreadList extends HookWidget {
                         if (index == count) return 4;
                         final style = DefaultTextStyle.of(context).style;
                         final thread = home.threads[index];
+                        final maxWidth = dimensions.crossAxisExtent - 32;
                         double height = 16;
                         height += estimateTextHeight(
                           thread.sender,
                           style.merge(senderTextStyle),
-                          maxWidth: dimensions.crossAxisExtent - 32,
+                          maxWidth: maxWidth,
                         );
                         height += 4;
                         height += estimateTextHeight(
                           thread.subject,
                           style.merge(mainTextStyle),
-                          maxWidth: dimensions.crossAxisExtent - 32,
+                          maxWidth: maxWidth,
                         );
                         height += 16;
                         return height;

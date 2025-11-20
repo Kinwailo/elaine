@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
@@ -22,15 +21,15 @@ ValueNotifier<T?> futureToNotifier<T>(Future<T> future, {T? initialValue}) {
   return notifier;
 }
 
-Future<ui.Size> getImageSize(Uint8List data) async {
-  final completer = Completer<ui.Size>();
+Future<Size> getImageSize(Uint8List data) async {
+  final completer = Completer<Size>();
   final image = Image.memory(data);
   image.image
       .resolve(ImageConfiguration())
       .addListener(
         ImageStreamListener(
           (i, _) => completer.complete(
-            ui.Size(i.image.width.toDouble(), i.image.height.toDouble()),
+            Size(i.image.width.toDouble(), i.image.height.toDouble()),
           ),
         ),
       );
@@ -41,6 +40,11 @@ extension DateCasting on DateTime {
   String get format => DateFormat('yyyy-MM-dd HH:mm').format(this);
   String get relative =>
       GetTimeAgo.parse(this, locale: 'zh_tr', pattern: 'yyyy-MM-dd HH:mm');
+}
+
+extension SeparatorExtension<T> on Iterable<T> {
+  List<T> separator(T item) =>
+      isEmpty ? [] : skip(1).fold([first], (v, e) => v..addAll([item, e]));
 }
 
 double estimateTextHeight(
@@ -55,6 +59,18 @@ double estimateTextHeight(
     textDirection: TextDirection.ltr,
   )..layout(maxWidth: maxWidth);
   return textPainter.height + 1;
+}
+
+double estimateWrappedHeight(
+  Iterable<double> widths,
+  double itemHeight,
+  double maxWidth,
+) {
+  return widths.fold(Size(0, itemHeight), (v, e) {
+    return v.width + e <= maxWidth
+        ? Size(v.width + e, v.height)
+        : Size(e, v.height + itemHeight);
+  }).height;
 }
 
 abstract class ListListenable<T> extends Listenable {

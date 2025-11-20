@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -57,50 +55,63 @@ class PostList extends HookWidget {
                   if (index == count) return 8;
                   final style = DefaultTextStyle.of(context).style;
                   final post = home.posts[index];
-                  double height = 18;
-                  height += estimateTextHeight(
-                    post.sender,
-                    style.merge(senderTextStyle),
-                    maxWidth: dimensions.crossAxisExtent - 40,
-                  );
-                  height += 8;
                   final quote = home.getQuoteNotifier(post.msgid);
-                  if (quote.value != null) {
-                    height += estimateTextHeight(
-                      '${quote.value!.sender}: ${quote.value?.text ?? syncBodyText}',
-                      style.merge(senderTextStyle),
-                      maxLines: 3,
-                      maxWidth: dimensions.crossAxisExtent - 40 - 12.5,
-                    );
-                    height += 8;
-                    final qFiles = home.getFilesNotifier(quote.value!.msgid);
-                    if (qFiles.isNotEmpty) {
-                      height += 100;
-                    }
-                    height += 8;
-                  }
-                  if (post.text?.isNotEmpty ?? true) {
-                    height += estimateTextHeight(
-                      post.text ?? syncBodyText,
-                      style.merge(mainTextStyle),
-                      maxWidth: dimensions.crossAxisExtent - 40,
-                    );
-                  }
                   final images = home.getFilesNotifier(post.msgid);
-                  if (images.isNotEmpty) {
-                    final h = images
-                        .map((e) => e.value?.size)
-                        .map(
-                          (e) => e == null
-                              ? 50
-                              : min(600, dimensions.crossAxisExtent - 40) /
-                                    e.width *
-                                    e.height,
-                        )
-                        .sum;
-                    height += h;
-                  }
-                  height += 18;
+                  final qFiles = home.getFilesNotifier(
+                    quote.value?.msgid ?? '',
+                  );
+                  final maxWidth = dimensions.crossAxisExtent - 40;
+                  final qMaxWidth = maxWidth - 12.5;
+
+                  double height = 2 + 16;
+                  height += [
+                    estimateTextHeight(
+                      post.sender,
+                      style.merge(senderTextStyle),
+                      maxWidth: maxWidth,
+                    ),
+                    if (quote.value != null)
+                      [
+                        4,
+                        estimateTextHeight(
+                          '${quote.value!.sender}: ${quote.value?.text ?? syncBodyText}',
+                          style.merge(senderTextStyle),
+                          maxLines: 3,
+                          maxWidth: qMaxWidth,
+                        ),
+                        if (qFiles.isNotEmpty)
+                          estimateWrappedHeight(
+                            qFiles
+                                .map((e) => e.value)
+                                .map(
+                                  (e) => e == null
+                                      ? 64
+                                      : e.size.width * 100 / e.size.height,
+                                ),
+                            100,
+                            qMaxWidth,
+                          ),
+                        4,
+                      ].sum,
+                    if (post.text?.isNotEmpty ?? true)
+                      estimateTextHeight(
+                        post.text ?? syncBodyText,
+                        style.merge(mainTextStyle),
+                        maxWidth: maxWidth,
+                      ),
+                    if (images.isNotEmpty)
+                      images
+                          .map((e) => e.value?.size)
+                          .map(
+                            (e) => e == null
+                                ? 64
+                                : [600, e.width, maxWidth].min /
+                                      e.width *
+                                      e.height,
+                          )
+                          .sum,
+                  ].separator(8).sum;
+                  height += 16 + 2;
                   return height;
                 },
               ),
@@ -159,14 +170,12 @@ class PostTile extends HookWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+            children: <Widget>[
               PostTileHeadbar(index),
-              const SizedBox(height: 8),
               if (quote.value != null) PostTileQuote(quote, qFiles),
-              if (quote.value != null) const SizedBox(height: 8),
               if (post.text?.isNotEmpty ?? true) PostTileText(index),
-              if (files.isNotEmpty) PostTileImages(files, small: false),
-            ],
+              if (files.isNotEmpty) PostTileImages(files),
+            ].separator(const SizedBox(height: 8)),
           ),
         ),
       ),
@@ -263,7 +272,7 @@ class PostTileQuote extends HookWidget {
                 ),
                 maxLines: 3,
               ),
-              if (qFiles.isNotEmpty) PostTileImages(qFiles, small: true),
+              if (qFiles.isNotEmpty) PostTilePreviews(qFiles),
             ],
           ),
         ),
@@ -273,30 +282,57 @@ class PostTileQuote extends HookWidget {
 }
 
 class PostTileImages extends HookWidget {
-  const PostTileImages(this.images, {super.key, required this.small});
+  const PostTileImages(this.images, {super.key});
 
   final ImageNotifierList images;
-  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    useListenable(Listenable.merge(images));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...images
+            .map((e) => e.value)
+            .map(
+              (e) => e == null
+                  ? SizedBox.square(
+                      dimension: 64,
+                      child: CircularProgressIndicator(),
+                    )
+                  : Image.memory(
+                      e.data,
+                      width: e.size.width > 600 ? 600 : null,
+                    ),
+            ),
+      ],
+    );
+  }
+}
+
+class PostTilePreviews extends HookWidget {
+  const PostTilePreviews(this.images, {super.key});
+
+  final ImageNotifierList images;
 
   @override
   Widget build(BuildContext context) {
     useListenable(Listenable.merge(images));
     return Wrap(
-      direction: small ? Axis.horizontal : Axis.vertical,
       children: [
-        ...images.map(
-          (e) => e.value == null
-              ? SizedBox.square(
-                  dimension: 50,
-                  child: CircularProgressIndicator(),
-                )
-              : Image.memory(
-                  e.value!.data,
-                  width: small ? null : 600,
-                  height: small ? 100 : null,
-                  fit: BoxFit.cover,
-                ),
-        ),
+        ...images
+            .map((e) => e.value)
+            .map(
+              (e) => e == null
+                  ? SizedBox.square(
+                      dimension: 64,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : Image.memory(e.data, height: 100, fit: BoxFit.cover),
+            ),
       ],
     );
   }
