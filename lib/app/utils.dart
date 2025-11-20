@@ -46,11 +46,12 @@ extension DateCasting on DateTime {
 double estimateTextHeight(
   String text,
   TextStyle style, {
+  int? maxLines,
   double maxWidth = double.infinity,
 }) {
   final TextPainter textPainter = TextPainter(
     text: TextSpan(text: text, style: style),
-    maxLines: null,
+    maxLines: maxLines,
     textDirection: TextDirection.ltr,
   )..layout(maxWidth: maxWidth);
   return textPainter.height + 1;

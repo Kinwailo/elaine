@@ -69,6 +69,7 @@ class PostList extends HookWidget {
                     height += estimateTextHeight(
                       '${quote.value!.sender}: ${quote.value?.text ?? syncBodyText}',
                       style.merge(senderTextStyle),
+                      maxLines: 3,
                       maxWidth: dimensions.crossAxisExtent - 40 - 12.5,
                     );
                     height += 8;
@@ -78,25 +79,26 @@ class PostList extends HookWidget {
                     }
                     height += 8;
                   }
-                  height += estimateTextHeight(
-                    post.text ?? syncBodyText,
-                    style.merge(mainTextStyle),
-                    maxWidth: dimensions.crossAxisExtent - 40,
-                  );
+                  if (post.text?.isNotEmpty ?? true) {
+                    height += estimateTextHeight(
+                      post.text ?? syncBodyText,
+                      style.merge(mainTextStyle),
+                      maxWidth: dimensions.crossAxisExtent - 40,
+                    );
+                  }
                   final images = home.getFilesNotifier(post.msgid);
                   if (images.isNotEmpty) {
                     final h = images
-                        .map((e) => e.value?.size ?? Size(50, 50))
-                        .map((e) {
-                          final w = min(600, dimensions.crossAxisExtent - 40);
-                          if (e.width <= w) {
-                            return e.height;
-                          } else {
-                            return w / e.width * e.height;
-                          }
-                        })
+                        .map((e) => e.value?.size)
+                        .map(
+                          (e) => e == null
+                              ? 50
+                              : min(600, dimensions.crossAxisExtent - 40) /
+                                    e.width *
+                                    e.height,
+                        )
                         .sum;
-                    height += h - 25;
+                    height += h;
                   }
                   height += 18;
                   return height;
@@ -149,9 +151,6 @@ class PostTile extends HookWidget {
     final qMsgid = quote.value?.msgid ?? '';
     keys.add(qMsgid);
     final qFiles = useMemoized(() => home.setFilesNotifier(qMsgid), keys);
-    useListenable(quote);
-    useListenable(Listenable.merge(files));
-    useListenable(Listenable.merge(qFiles));
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -161,105 +160,144 @@ class PostTile extends HookWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Text(post.sender, style: senderTextStyle),
-                  const SizedBox(width: 8),
-                  TooltipVisibility(
-                    visible: post.date.relative != post.date.format,
-                    child: Tooltip(
-                      message: post.date.format,
-                      child: Text(post.date.relative, style: subTextStyle),
-                    ),
-                  ),
-                  Spacer(),
-                  Text('#${index + 1}', style: subTextStyle),
-                ],
-              ),
+              PostTileHeadbar(index),
               const SizedBox(height: 8),
-              if (quote.value != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: EdgeInsetsGeometry.all(4),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHigh,
-                        border: Border(
-                          left: BorderSide(
-                            color: colorScheme.tertiaryFixedDim,
-                            width: 4,
-                            style: BorderStyle.solid,
-                          ),
-                          right: BorderSide(
-                            color: colorScheme.tertiaryFixedDim,
-                            width: 0.5,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              text: '${quote.value!.sender}: ',
-                              style: senderTextStyle,
-                              children: [
-                                TextSpan(
-                                  text: quote.value!.text ?? syncBodyText,
-                                  style: subTextStyle,
-                                ),
-                              ],
-                            ),
-                            maxLines: 3,
-                          ),
-                          if (qFiles.isNotEmpty)
-                            ...qFiles.map(
-                              (e) => e.value == null
-                                  ? SizedBox.square(
-                                      dimension: 50,
-                                      child: CircularProgressIndicator(),
-                                    )
-                                  : Image.memory(
-                                      e.value!.data,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                    ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              if (quote.value != null) PostTileQuote(quote, qFiles),
               if (quote.value != null) const SizedBox(height: 8),
-              if (post.text == null)
-                Text(syncBodyText, style: mainTextStyle)
-              else if (post.text!.isNotEmpty)
-                Text(post.text!, style: mainTextStyle),
-              if (files.isNotEmpty)
-                ...files.map(
-                  (e) => e.value == null
-                      ? Center(
-                          child: SizedBox.square(
-                            dimension: 50,
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      : Align(
-                          alignment: AlignmentGeometry.centerLeft,
-                          child: Image.memory(
-                            e.value!.data,
-                            width: 600,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                ),
+              if (post.text?.isNotEmpty ?? true) PostTileText(index),
+              if (files.isNotEmpty) PostTileImages(files, small: false),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class PostTileText extends StatelessWidget {
+  const PostTileText(this.index, {super.key});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    final post = home.posts[index];
+    return post.text == null
+        ? Text(syncBodyText, style: mainTextStyle)
+        : Text(post.text!, style: mainTextStyle);
+  }
+}
+
+class PostTileHeadbar extends HookWidget {
+  const PostTileHeadbar(this.index, {super.key});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    final post = home.posts[index];
+    return Row(
+      children: [
+        Text(post.sender, style: senderTextStyle),
+        const SizedBox(width: 8),
+        TooltipVisibility(
+          visible: post.date.relative != post.date.format,
+          child: Tooltip(
+            message: post.date.format,
+            child: Text(post.date.relative, style: subTextStyle),
+          ),
+        ),
+        Spacer(),
+        Text('#${index + 1}', style: subTextStyle),
+      ],
+    );
+  }
+}
+
+class PostTileQuote extends HookWidget {
+  const PostTileQuote(this.quote, this.qFiles, {super.key});
+
+  final NullablePostNotifier quote;
+  final ImageNotifierList qFiles;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    useListenable(quote);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: EdgeInsetsGeometry.all(4),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh,
+            border: Border(
+              left: BorderSide(
+                color: colorScheme.tertiaryFixedDim,
+                width: 4,
+                style: BorderStyle.solid,
+              ),
+              right: BorderSide(
+                color: colorScheme.tertiaryFixedDim,
+                width: 0.5,
+                style: BorderStyle.solid,
+              ),
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                TextSpan(
+                  text: '${quote.value!.sender}: ',
+                  style: senderTextStyle,
+                  children: [
+                    TextSpan(
+                      text: quote.value!.text ?? syncBodyText,
+                      style: subTextStyle,
+                    ),
+                  ],
+                ),
+                maxLines: 3,
+              ),
+              if (qFiles.isNotEmpty) PostTileImages(qFiles, small: true),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class PostTileImages extends HookWidget {
+  const PostTileImages(this.images, {super.key, required this.small});
+
+  final ImageNotifierList images;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    useListenable(Listenable.merge(images));
+    return Wrap(
+      direction: small ? Axis.horizontal : Axis.vertical,
+      children: [
+        ...images.map(
+          (e) => e.value == null
+              ? SizedBox.square(
+                  dimension: 50,
+                  child: CircularProgressIndicator(),
+                )
+              : Image.memory(
+                  e.value!.data,
+                  width: small ? null : 600,
+                  height: small ? 100 : null,
+                  fit: BoxFit.cover,
+                ),
+        ),
+      ],
     );
   }
 }

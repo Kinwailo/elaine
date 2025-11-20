@@ -41,7 +41,7 @@ class ThreadList extends HookWidget {
                 ),
                 IconButton(
                   onPressed: () {
-                    home.refreshGroups();
+                    // home.refreshGroups();
                   },
                   icon: Icon(Icons.refresh),
                   style: IconButton.styleFrom(

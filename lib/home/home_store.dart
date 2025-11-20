@@ -8,13 +8,16 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 
+typedef NullablePostNotifier = ValueNotifier<PostData?>;
+typedef ImageNotifierList = List<ValueNotifier<ImageData?>>;
+
 class PostTileData {
   final PostData data;
-  late final ValueNotifier<PostData?> quote;
-  late final List<ValueNotifier<ImageData?>> images;
+  late final NullablePostNotifier quote;
+  late final ImageNotifierList images;
 
   PostTileData(this.data) {
-    quote = ValueNotifier<PostData?>(null);
+    quote = NullablePostNotifier(null);
     images = [];
     for (var _ in data.files) {
       images.add(ValueNotifier<ImageData?>(null));
@@ -172,11 +175,11 @@ class HomeStore {
     return quote;
   }
 
-  ValueNotifier<PostData?> getQuoteNotifier(String msgid) {
+  NullablePostNotifier getQuoteNotifier(String msgid) {
     return _postsTile[msgid]!.quote;
   }
 
-  ValueNotifier<PostData?> setQuoteNotifier(String msgid) {
+  NullablePostNotifier setQuoteNotifier(String msgid) {
     final quote = getQuoteNotifier(msgid);
     if (quote.value != null) return quote;
     _getQuote(msgid).then((value) {
@@ -195,11 +198,11 @@ class HomeStore {
     return ImageData(data, size);
   }
 
-  List<ValueNotifier<ImageData?>> getFilesNotifier(String msgid) {
+  ImageNotifierList getFilesNotifier(String msgid) {
     return _postsTile[msgid]?.images ?? [];
   }
 
-  List<ValueNotifier<ImageData?>> setFilesNotifier(String msgid) {
+  ImageNotifierList setFilesNotifier(String msgid) {
     final images = _postsTile[msgid]?.images;
     if (images == null) return [];
     if (images.any((e) => e.value != null)) return images;
