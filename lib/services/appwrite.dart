@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/enums.dart';
 import 'package:flutter/foundation.dart';
@@ -15,49 +17,75 @@ class AppWrite extends CloudService {
   late final realtime = Realtime(client);
 
   @override
-  Future<List<GroupData>> getGroups(List<String> groups) async {
-    var result = <GroupData>[];
-    if (groups.isEmpty) return result;
-    final rows = await tablesDB.listRows(
-      databaseId: 'elaine',
-      tableId: 'groups',
-      queries: [Query.equal('group', groups), Query.limit(groups.length)],
-    );
-    if (rows.rows.isNotEmpty) {
-      result = rows.rows.map((e) => GroupData(e.data)).toList();
-    }
-    return result;
+  Future<List<Group>> getGroups({Iterable<String>? groups}) async {
+    if (groups != null && groups.isEmpty) return [];
+    final rows = (groups == null)
+        ? await tablesDB.listRows(
+            databaseId: 'elaine',
+            tableId: 'groups',
+            queries: [Query.limit(100)],
+          )
+        : await tablesDB.listRows(
+            databaseId: 'elaine',
+            tableId: 'groups',
+            queries: [Query.equal('group', groups), Query.limit(groups.length)],
+          );
+    return rows.rows.isEmpty
+        ? []
+        : rows.rows.map((e) => Group(e.data)).toList();
   }
 
   @override
-  Future<void> refreshGroups(List<GroupData> groups) async {
-    final map = <String, GroupData>{for (var e in groups) e.group: e};
-    final channels = map.values
-        .map((e) => e.id)
-        .map((e) => 'databases.elaine.tables.groups.rows.$e');
+  Future<Map<String, int>> checkGroups(Iterable<String> groups) async {
+    var e = await functions.createExecution(
+      functionId: 'elaine_worker',
+      method: ExecutionMethod.pOST,
+      headers: {'content-type': 'application/json'},
+      body: '{"action":"check_group","data":"${groups.first}"}',
+    );
+    try {
+      final res = jsonDecode(e.responseBody);
+      return {for (var g in groups) g: res[g]};
+    } catch (_) {
+      return {for (var g in groups) g: 0};
+    }
+  }
+
+  @override
+  Future<bool> syncThreads(Iterable<Group> groups) async {
+    final ids = groups.map((e) => e.id).toList();
+    final channels = ids.map((e) => 'databases.elaine.tables.groups.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
 
-    for (var e in map.keys) {
+    final names = groups.map((e) => e.group).toList();
+    for (var name in names) {
       functions.createExecution(
         functionId: 'elaine_worker',
         xasync: true,
         method: ExecutionMethod.pOST,
         headers: {'content-type': 'application/json'},
-        body: '{"action":"threads","data":"$e"}',
+        body: '{"action":"get_threads","data":"$name"}',
       );
     }
 
-    final waiting = map.keys.toSet();
-    await for (var response in subscription.stream) {
-      final data = response.payload;
-      waiting.remove(data['group']);
-      if (waiting.isEmpty) break;
+    final waiting = names.toSet();
+    final stream = subscription.stream.timeout(const Duration(seconds: 10));
+    try {
+      await for (var response in stream) {
+        final data = response.payload;
+        waiting.remove(data['group']);
+        if (waiting.isEmpty) break;
+      }
+    } catch (_) {
+      return false;
+    } finally {
+      await subscription.close();
     }
-    await subscription.close();
+    return true;
   }
 
   @override
-  Future<ThreadData?> getThread(String group, int number) async {
+  Future<Thread?> getThread(String group, int number) async {
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'threads',
@@ -68,47 +96,42 @@ class AppWrite extends CloudService {
       ],
     );
     if (rows.rows.isEmpty) return null;
-    return ThreadData(rows.rows[0].data);
+    return Thread(rows.rows[0].data);
   }
 
   @override
-  Future<List<ThreadData>> getThreads(
-    List<GroupData> groups,
+  Future<List<Thread>> getThreads(
+    Iterable<String> groups,
     int limit,
     String? cursor,
   ) async {
     if (groups.isEmpty) return [];
-    final names = groups.map((e) => e.group).toList();
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'threads',
       queries: [
-        Query.equal('group', names),
+        Query.equal('group', groups.toList()),
         Query.orderDesc('date'),
         Query.limit(limit),
         if (cursor != null) Query.cursorAfter(cursor),
       ],
     );
-    return rows.rows.map((e) => ThreadData(e.data)).toList();
+    return rows.rows.map((e) => Thread(e.data)).toList();
   }
 
   @override
-  Future<PostData?> getPost(String msgid) async {
+  Future<Post?> getPost(String msgid) async {
     var rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [Query.equal('msgid', msgid), Query.limit(1)],
     );
     if (rows.rows.isEmpty) return null;
-    return PostData(rows.rows[0].data);
+    return Post(rows.rows[0].data);
   }
 
   @override
-  Future<List<PostData>> getPosts(
-    String msgid,
-    int limit,
-    String? cursor,
-  ) async {
+  Future<List<Post>> getPosts(String msgid, int limit, String? cursor) async {
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
@@ -119,7 +142,7 @@ class AppWrite extends CloudService {
         if (cursor != null) Query.cursorAfter(cursor),
       ],
     );
-    return rows.rows.map((e) => PostData(e.data)).toList();
+    return rows.rows.map((e) => Post(e.data)).toList();
   }
 
   @override

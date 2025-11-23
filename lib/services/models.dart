@@ -1,10 +1,7 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-
 import '../app/string_utils.dart';
 import 'cloud_service.dart';
 
-class GroupData {
+class Group {
   final String id;
   final String group;
   final String name;
@@ -12,7 +9,7 @@ class GroupData {
   final int total;
   final DateTime update;
 
-  GroupData(RowData data)
+  Group(RowData data)
     : id = (data['\$id'] ?? '') as String,
       group = (data['group'] ?? 'Null') as String,
       name = (data['name'] ?? 'Null') as String,
@@ -23,7 +20,7 @@ class GroupData {
       ).toLocal();
 }
 
-class ThreadData {
+class Thread {
   final String id;
   final String group;
   final String subject;
@@ -35,11 +32,11 @@ class ThreadData {
   final int number;
   final String msgid;
 
-  ThreadData(RowData data)
+  Thread(RowData data)
     : id = (data['\$id'] ?? '') as String,
       group = (data['group'] ?? '') as String,
-      subject = ((data['subject'] ?? 'Null') as String).trim(),
-      sender = ((data['sender'] ?? 'Null') as String).trim(),
+      subject = ((data['subject'] ?? '') as String).trim(),
+      sender = ((data['sender'] ?? '') as String).trim(),
       hot = ((data['hot'] ?? 0.0) as num).toDouble(),
       total = (data['total'] ?? 1) as int,
       latest = DateTime.parse(
@@ -52,7 +49,7 @@ class ThreadData {
       msgid = (data['msgid'] ?? '') as String;
 }
 
-class PostData {
+class Post {
   final String id;
   final String thread;
   final String sender;
@@ -65,10 +62,10 @@ class PostData {
   final String msgid;
   final List<String> ref;
 
-  PostData(RowData data)
+  Post(RowData data)
     : id = (data['\$id'] ?? '') as String,
       thread = (data['thread'] ?? '') as String,
-      sender = ((data['sender'] ?? 'Null') as String).trim(),
+      sender = ((data['sender'] ?? '') as String).trim(),
       text = (data['text'] as String?)?.stripAll,
       html = (data['html'] ?? false) as bool,
       textFile = data['textFile'] as String?,
@@ -79,91 +76,4 @@ class PostData {
       number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String,
       ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList();
-}
-
-abstract class ThreadDataListenable extends Listenable {
-  const ThreadDataListenable();
-  ThreadData get value;
-
-  String get id;
-  String get group;
-  String get subject;
-  String get sender;
-  double get hot;
-  int get total;
-  DateTime get latest;
-  DateTime get date;
-  int get number;
-  String get msgid;
-}
-
-class ThreadDataNotifier extends ValueNotifier<ThreadData>
-    implements ThreadDataListenable {
-  ThreadDataNotifier(super.value);
-
-  @override
-  String get id => value.id;
-  @override
-  String get group => value.group;
-  @override
-  String get subject => value.subject;
-  @override
-  String get sender => value.sender;
-  @override
-  double get hot => value.hot;
-  @override
-  int get total => value.total;
-  @override
-  DateTime get latest => value.latest;
-  @override
-  DateTime get date => value.date;
-  @override
-  int get number => value.number;
-  @override
-  String get msgid => value.msgid;
-}
-
-abstract class PostDataListenable extends Listenable {
-  const PostDataListenable();
-  PostData get value;
-
-  String get id;
-  String get thread;
-  String get sender;
-  String? get text;
-  bool get html;
-  String? get textFile;
-  List<String> get files;
-  DateTime get date;
-  int get number;
-  String get msgid;
-  List<String> get ref;
-}
-
-class PostDataNotifier extends ValueNotifier<PostData>
-    implements PostDataListenable {
-  PostDataNotifier(super.value);
-
-  @override
-  String get id => value.id;
-  @override
-  String get thread => value.thread;
-  @override
-  String get sender => value.sender;
-  @override
-  String? get text => value.text;
-  @override
-  bool get html => value.html;
-  @override
-  String? get textFile => value.textFile;
-  @override
-  List<String> get files => value.files;
-  @override
-  DateTime get date => value.date;
-  @override
-  int get number => value.number;
-  @override
-  String get msgid => value.msgid;
-  @override
-  List<String> get ref => value.ref;
 }

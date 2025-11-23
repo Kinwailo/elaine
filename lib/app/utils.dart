@@ -10,6 +10,7 @@ const syncBodyText = '文章正從新聞組同步中…';
 const mainTextStyle = TextStyle(fontSize: 18);
 const subTextStyle = TextStyle(color: Colors.grey, fontSize: 14);
 const senderTextStyle = TextStyle(color: Colors.blueAccent, fontSize: 14);
+const pinnedTextStyle = TextStyle(fontSize: 16);
 
 int get hotRef => DateTime.now().difference(DateTime(2025, 10, 1)).inSeconds;
 

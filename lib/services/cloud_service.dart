@@ -5,21 +5,23 @@ import 'models.dart';
 typedef RowData = Map<String, dynamic>;
 
 abstract class CloudService {
-  Future<List<GroupData>> getGroups(List<String> groups);
+  Future<List<Group>> getGroups({Iterable<String>? groups});
 
-  Future<void> refreshGroups(List<GroupData> groups);
+  Future<Map<String, int>> checkGroups(Iterable<String> groups);
 
-  Future<ThreadData?> getThread(String group, int number);
+  Future<bool> syncThreads(Iterable<Group> groups);
 
-  Future<List<ThreadData>> getThreads(
-    List<GroupData> groups,
+  Future<Thread?> getThread(String group, int number);
+
+  Future<List<Thread>> getThreads(
+    Iterable<String> groups,
     int limit,
     String? cursor,
   );
 
-  Future<PostData?> getPost(String msgid);
+  Future<Post?> getPost(String msgid);
 
-  Future<List<PostData>> getPosts(String msgid, int limit, String? cursor);
+  Future<List<Post>> getPosts(String msgid, int limit, String? cursor);
 
   Future<Uint8List> getFile(String id);
 }

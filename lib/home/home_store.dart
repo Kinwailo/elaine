@@ -8,16 +8,27 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 
-typedef NullablePostNotifier = ValueNotifier<PostData?>;
+typedef QuoteNotifier = ValueNotifier<Post?>;
 typedef ImageNotifierList = List<ValueNotifier<ImageData?>>;
 
-class PostTileData {
-  final PostData data;
-  late final NullablePostNotifier quote;
+const String defaultGroup = 'general.chat';
+
+class GroupData {
+  final Group data;
+  late int number;
+
+  GroupData(this.data) {
+    number = data.number;
+  }
+}
+
+class PostData {
+  final Post data;
+  late final QuoteNotifier quote;
   late final ImageNotifierList images;
 
-  PostTileData(this.data) {
-    quote = NullablePostNotifier(null);
+  PostData(this.data) {
+    quote = QuoteNotifier(null);
     images = [];
     for (var _ in data.files) {
       images.add(ValueNotifier<ImageData?>(null));
@@ -32,47 +43,86 @@ class ImageData {
 }
 
 class HomeStore {
-  ListListenable<GroupData> get currentGroups => _currentGroups;
-  final _currentGroups = ListNotifier<GroupData>([]);
+  ListListenable<Group> get groups => _groups;
+  final _groups = ListNotifier<Group>([]);
+  final _groupMap = <String, GroupData>{};
 
-  ListListenable<ThreadData> get threads => _threads;
-  final _threads = ListNotifier<ThreadData>([]);
+  Set<String> get followeds => Set.unmodifiable(_followeds);
+  final _followeds = <String>{};
+  String get selected => _selected;
+  String _selected = '';
+
+  ListListenable<Thread> get threads => _threads;
+  final _threads = ListNotifier<Thread>([]);
   bool get noMoreThreads => _noMoreThreads;
-  var _noMoreThreads = false;
-  ThreadDataListenable get currentThread => _currentThread;
-  final _currentThread = ThreadDataNotifier(ThreadData({}));
+  var _noMoreThreads = true;
+  Thread get thread => _thread.value;
+  final _thread = ValueNotifier<Thread>(Thread({}));
 
-  ListListenable<PostData> get posts => _posts;
-  final _posts = ListNotifier<PostData>([]);
+  ListListenable<Post> get posts => _posts;
+  final _posts = ListNotifier<Post>([]);
   bool get noMorePosts => _noMorePosts;
-  var _noMorePosts = false;
-  PostDataListenable get currentPost => _currentPost;
-  final _currentPost = PostDataNotifier(PostData({}));
+  var _noMorePosts = true;
+  Post get post => _post.value;
+  final _post = ValueNotifier<Post>(Post({}));
+  final _postMap = <String, PostData>{};
 
   static const _itemsPreFetch = 25;
 
   String? _cursorThreads;
   String? _cursorPosts;
 
-  final _postsTile = <String, PostTileData>{};
+  ValueListenable<int?> get threadTile => _threadTile;
+  final _threadTile = ValueNotifier<int?>(null);
 
-  final currentThreadTile = ValueNotifier<int?>(null);
+  ValueListenable<int> get syncTotal => _syncTotal;
+  final _syncTotal = ValueNotifier<int>(0);
 
   HomeStore() {
-    selectGroups(['general.chat']);
+    final cloud = Modular.get<CloudService>();
+    cloud.getGroups().then((e) => _groups.value = e);
+    selectGroup('general.chat');
   }
 
-  Future<void> selectGroups(List<String> groups) async {
-    final current = _currentGroups.value.map((e) => e.group);
-    if (setEquals(groups.toSet(), current.toSet())) return;
+  Future<void> _updateGroupMap() async {
     final cloud = Modular.get<CloudService>();
-    _currentGroups.value = await cloud.getGroups(groups);
+    final groups = await cloud.getGroups(groups: [_selected]);
+    _groupMap.clear();
+    _groupMap.addAll({for (var g in groups) g.group: GroupData(g)});
+  }
+
+  Future<void> selectGroup(String group) async {
+    if (_selected != group) {
+      _selected = group;
+      refreshThreads();
+    }
+  }
+
+  Future<void> refreshGroups() async {
+    // final cloud = Modular.get<CloudService>();
+    // final groups = await cloud.getGroups(groups: [_selected]);
+    // final update = groups.where(
+    //   (e) => DateTime.now().difference(e.update).inSeconds > 5,
+    // );
+    // if (update.isEmpty) {
+    //   refreshThreads();
+    //   return;
+    // }
+    // final numbers = await cloud.checkGroups(update.map((e) => e.group));
+    // final sync = update.where((e) => (numbers[e.group] ?? 0) > e.number);
+    // final total = sync.map((e) => (numbers[e.group] ?? 0) - e.number).sum;
+    // _syncTotal.value = total;
+    // if (sync.isEmpty) {
+    //   refreshThreads();
+    // } else {
+    //   final result = await cloud.syncThreads(sync);
+    //   _syncTotal.value = 0;
+    //   if (result) refreshThreads();
+    // }
+    _syncTotal.value = 1;
+    await Future.delayed(Duration(seconds: 2));
+    _syncTotal.value = 0;
     refreshThreads();
-  }
-
-  void refreshGroups() {
-    final cloud = Modular.get<CloudService>();
-    cloud.refreshGroups(_currentGroups.value);
   }
 
   Future<void> selectThread(String group, int number) async {
@@ -84,21 +134,37 @@ class HomeStore {
       thread = await cloud.getThread(group, number);
     }
     if (thread == null) return;
-    if (currentThread.number != number) refreshPosts();
-    _currentThread.value = thread;
+    if (this.thread.number != number) refreshPosts();
+    _thread.value = thread;
   }
 
-  void refreshThreads() {
+  int? getThreadTile(int? number) {
+    if (_threadTile.value == null) {
+      _threadTile.value = number;
+    }
+    return _threadTile.value;
+  }
+
+  int? updateThreadTile(int? number) {
+    if (number != null) {
+      _threadTile.value = number;
+    }
+    return _threadTile.value;
+  }
+
+  Future<void> refreshThreads() async {
+    await _updateGroupMap();
     _cursorThreads = null;
     _noMoreThreads = false;
     _threads.clear();
+    _threadTile.value = null;
   }
 
   Future<void> loadMoreThreads() async {
     if (_noMoreThreads) return;
     final cloud = Modular.get<CloudService>();
     var items = await cloud.getThreads(
-      _currentGroups.value,
+      _groupMap.keys,
       _itemsPreFetch,
       _cursorThreads,
     );
@@ -115,14 +181,14 @@ class HomeStore {
     _cursorPosts = null;
     _noMorePosts = false;
     _posts.clear();
-    _postsTile.clear();
+    _postMap.clear();
   }
 
   Future<void> loadMorePosts() async {
     if (_noMorePosts) return;
     final cloud = Modular.get<CloudService>();
     var items = await cloud.getPosts(
-      currentThread.msgid,
+      thread.msgid,
       _itemsPreFetch,
       _cursorPosts,
     );
@@ -132,33 +198,19 @@ class HomeStore {
     } else {
       _cursorPosts = items.last.id;
     }
-    _postsTile.addAll({for (var item in items) item.msgid: PostTileData(item)});
+    _postMap.addAll({for (var item in items) item.msgid: PostData(item)});
     _posts.append(items);
   }
 
-  int? getThreadTile(int? number) {
-    if (currentThreadTile.value == null) {
-      currentThreadTile.value = number;
-    }
-    return currentThreadTile.value;
-  }
-
-  int? updateThreadTile(int? number) {
-    if (number != null) {
-      currentThreadTile.value = number;
-    }
-    return currentThreadTile.value;
-  }
-
-  PostData? _getPostByMsgid(String msgid) {
+  Post? _getPostByMsgid(String msgid) {
     final post = _posts.value.where((e) => e.msgid == msgid).firstOrNull;
-    return post ?? _postsTile[msgid]?.data;
+    return post ?? _postMap[msgid]?.data;
   }
 
-  Future<PostData?> _getQuote(String msgid) async {
+  Future<Post?> _getQuote(String msgid) async {
     final post = _getPostByMsgid(msgid);
     if (post == null || post.ref.isEmpty) return null;
-    PostData? previous;
+    Post? previous;
 
     for (var e in posts.value) {
       if (e.msgid == post.msgid && previous?.msgid == post.ref.last) {
@@ -170,16 +222,16 @@ class HomeStore {
     if (quote == null) {
       final cloud = Modular.get<CloudService>();
       quote = await cloud.getPost(post.ref.last);
-      if (quote != null) _postsTile[quote.msgid] = PostTileData(quote);
+      if (quote != null) _postMap[quote.msgid] = PostData(quote);
     }
     return quote;
   }
 
-  NullablePostNotifier getQuoteNotifier(String msgid) {
-    return _postsTile[msgid]!.quote;
+  QuoteNotifier getQuoteNotifier(String msgid) {
+    return _postMap[msgid]!.quote;
   }
 
-  NullablePostNotifier setQuoteNotifier(String msgid) {
+  QuoteNotifier setQuoteNotifier(String msgid) {
     final quote = getQuoteNotifier(msgid);
     if (quote.value != null) return quote;
     _getQuote(msgid).then((value) {
@@ -189,7 +241,7 @@ class HomeStore {
   }
 
   Listenable get allQuotesListenable =>
-      Listenable.merge(_postsTile.values.map((e) => e.quote));
+      Listenable.merge(_postMap.values.map((e) => e.quote));
 
   Future<ImageData> _getImageData(String id) async {
     final cloud = Modular.get<CloudService>();
@@ -199,11 +251,11 @@ class HomeStore {
   }
 
   ImageNotifierList getFilesNotifier(String msgid) {
-    return _postsTile[msgid]?.images ?? [];
+    return _postMap[msgid]?.images ?? [];
   }
 
   ImageNotifierList setFilesNotifier(String msgid) {
-    final images = _postsTile[msgid]?.images;
+    final images = _postMap[msgid]?.images;
     if (images == null) return [];
     if (images.any((e) => e.value != null)) return images;
     final data = _getPostByMsgid(
@@ -220,5 +272,5 @@ class HomeStore {
   }
 
   Listenable get allImagesListenable =>
-      Listenable.merge(_postsTile.values.map((e) => e.images).flattened);
+      Listenable.merge(_postMap.values.map((e) => e.images).flattened);
 }

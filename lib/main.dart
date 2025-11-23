@@ -4,6 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import 'app/app_theme.dart';
 import 'home/home_page.dart';
+import 'home/home_store.dart';
 
 void main() {
   usePathUrlStrategy();
@@ -26,7 +27,7 @@ class AppWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Modular.setInitialRoute('/groups');
+    Modular.setInitialRoute('/$defaultGroup');
     Modular.to.addListener(() {
       debugPrint('Navigate: ${Modular.to.path}');
       debugPrint('History: ${Modular.to.navigateHistory.map((e) => e.name)}');

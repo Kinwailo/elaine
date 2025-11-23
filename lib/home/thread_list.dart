@@ -15,24 +15,28 @@ class ThreadList extends HookWidget {
     final home = Modular.get<HomeStore>();
     final count = home.threads.length;
     final extra = home.noMoreThreads ? 0 : 1;
-    final controller = useMemoized(() => ScrollController());
+    estimateTextHeight('（）', mainTextStyle);
+    final controller = useScrollController();
+    final anim = useAnimationController(duration: Durations.medium2);
+    useAnimation(anim);
     useListenable(home.threads);
+    useListenable(home.syncTotal);
     return Row(
       children: [
         SizedBox(
           width: 400,
           child: Scaffold(
             appBar: AppBar(
-              title: Text(''),
-              bottom: const PreferredSize(
-                preferredSize: Size.fromHeight(1),
-                child: Divider(height: 1),
-              ),
-              actionsPadding: EdgeInsets.only(right: 4),
+              toolbarHeight: kToolbarHeight - 12,
+              title: Text('12345', style: mainTextStyle),
+              titleSpacing: 10,
+              bottom: SyncStateBar(anim),
+              actionsPadding: EdgeInsets.only(right: 2),
               actions: [
                 IconButton(
                   onPressed: () {},
                   icon: Icon(Icons.create),
+                  padding: EdgeInsetsGeometry.all(0),
                   style: IconButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
@@ -41,9 +45,10 @@ class ThreadList extends HookWidget {
                 ),
                 IconButton(
                   onPressed: () {
-                    // home.refreshGroups();
+                    home.refreshGroups();
                   },
                   icon: Icon(Icons.refresh),
+                  padding: EdgeInsetsGeometry.all(0),
                   style: IconButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
@@ -107,6 +112,58 @@ class ThreadList extends HookWidget {
   }
 }
 
+class SyncStateBar extends HookWidget implements PreferredSizeWidget {
+  const SyncStateBar(this.anim, {super.key});
+
+  final AnimationController anim;
+
+  @override
+  Size get preferredSize => Size.fromHeight(1 + anim.value * 41);
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    useValueChanged(
+      home.syncTotal.value,
+      (_, _) => home.syncTotal.value > 0 ? anim.forward() : anim.reverse(),
+    );
+    return Column(
+      children: [
+        Divider(height: 1),
+        if (anim.value > 0)
+          SizedBox(
+            height: anim.value * 40,
+            child: Align(
+              alignment: AlignmentGeometry.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    Text(
+                      '從新聞組同步${home.syncTotal.value}條發言中…',
+                      style: pinnedTextStyle,
+                    ),
+                    Spacer(),
+                    SizedBox(
+                      width: 20,
+                      child: Center(
+                        child: SizedBox(
+                          width: anim.value * 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (anim.value > 0) Divider(height: anim.value * 1),
+      ],
+    );
+  }
+}
+
 class MoreThreads extends HookWidget {
   const MoreThreads({super.key});
 
@@ -137,7 +194,7 @@ class ThreadTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
     final thread = home.threads[index];
-    final number = home.getThreadTile(home.currentThread.number);
+    final number = home.getThreadTile(home.thread.number);
     final selected = thread.number == number;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -147,7 +204,7 @@ class ThreadTile extends HookWidget {
     final date = thread.date;
     // final hot = (thread.hot * 100.0 / hotRef).round();
     final link = '/${thread.group}/${thread.number}';
-    useListenable(home.currentThreadTile);
+    useListenable(home.threadTile);
     return Link(
       uri: Uri.parse(link),
       builder: (_, follow) => InkWell(

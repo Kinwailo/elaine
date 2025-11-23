@@ -16,16 +16,15 @@ class PostList extends HookWidget {
     final home = Modular.get<HomeStore>();
     final count = home.posts.length;
     final extra = home.noMorePosts ? 0 : 1;
-    final controller = useMemoized(() => ScrollController());
+    final controller = useScrollController();
     useListenable(home.posts);
     useListenable(home.allQuotesListenable);
     useListenable(home.allImagesListenable);
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          home.currentThread.subject,
-          overflow: TextOverflow.ellipsis,
-        ),
+        toolbarHeight: kToolbarHeight - 12,
+        title: Text(home.thread.subject, overflow: TextOverflow.ellipsis),
+        titleSpacing: 10,
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1),
@@ -228,7 +227,7 @@ class PostTileHeadbar extends HookWidget {
 class PostTileQuote extends HookWidget {
   const PostTileQuote(this.quote, this.qFiles, {super.key});
 
-  final NullablePostNotifier quote;
+  final QuoteNotifier quote;
   final ImageNotifierList qFiles;
 
   @override
@@ -298,7 +297,10 @@ class PostTileImages extends HookWidget {
               (e) => e == null
                   ? SizedBox.square(
                       dimension: 64,
-                      child: CircularProgressIndicator(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
                     )
                   : Image.memory(
                       e.data,
@@ -327,7 +329,7 @@ class PostTilePreviews extends HookWidget {
                   ? SizedBox.square(
                       dimension: 64,
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(32),
                         child: CircularProgressIndicator(),
                       ),
                     )

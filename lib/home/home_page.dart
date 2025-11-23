@@ -36,7 +36,7 @@ class HomeModule extends Module {
           child: (_) {
             final home = Modular.get<HomeStore>();
             final group = r.args.params['group'];
-            if (group != null) home.selectGroups([group]);
+            if (group != null) home.selectGroup(group);
             return ThreadList();
           },
           transition: TransitionType.noTransition,
@@ -69,37 +69,48 @@ class HomePage extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final scaffoldKey = GlobalKey<ScaffoldState>();
     return SafeArea(
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              SizedBox(width: 80),
-              Expanded(
-                child: Scaffold(
-                  key: scaffoldKey,
-                  drawer: Drawer(),
-                  body: const RouterOutlet(),
-                ),
+      child: Container(
+        color: colorScheme.surfaceContainer,
+        child: Align(
+          alignment: AlignmentGeometry.topCenter,
+          child: ClipRect(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: 800, maxWidth: 1200),
+              child: Stack(
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(width: 80),
+                      Expanded(
+                        child: Scaffold(
+                          key: scaffoldKey,
+                          drawer: Drawer(),
+                          body: const RouterOutlet(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: NavigationRail(
+                      backgroundColor: colorScheme.surfaceContainerHigh,
+                      selectedIndex: null,
+                      labelType: NavigationRailLabelType.none,
+                      leading: IconButton(
+                        onPressed: () {
+                          scaffoldKey.currentState?.openDrawer();
+                        },
+                        icon: const Icon(Icons.add),
+                      ),
+                      trailing: FilterChipItem(),
+                      destinations: [],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          SizedBox(
-            width: 80,
-            child: NavigationRail(
-              backgroundColor: colorScheme.surfaceContainer,
-              selectedIndex: null,
-              labelType: NavigationRailLabelType.none,
-              leading: IconButton(
-                onPressed: () {
-                  scaffoldKey.currentState?.openDrawer();
-                },
-                icon: const Icon(Icons.add),
-              ),
-              trailing: FilterChipItem(),
-              destinations: [],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
