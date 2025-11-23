@@ -1,16 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:elaine/app/const.dart';
 import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-
-const syncBodyText = '文章正從新聞組同步中…';
-
-const mainTextStyle = TextStyle(fontSize: 18);
-const subTextStyle = TextStyle(color: Colors.grey, fontSize: 14);
-const senderTextStyle = TextStyle(color: Colors.blueAccent, fontSize: 14);
-const pinnedTextStyle = TextStyle(fontSize: 16);
 
 int get hotRef => DateTime.now().difference(DateTime(2025, 10, 1)).inSeconds;
 
@@ -35,6 +29,12 @@ Future<Size> getImageSize(Uint8List data) async {
         ),
       );
   return completer.future;
+}
+
+extension StringFormatter on String {
+  String get noEmpty => isEmpty ? emptyText : this;
+  String format(List<dynamic> values) =>
+      values.fold(this, (v, e) => v.replaceFirst('%s', e.toString()));
 }
 
 extension DateCasting on DateTime {

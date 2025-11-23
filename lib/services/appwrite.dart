@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/enums.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import 'cloud_service.dart';
 import 'models.dart';
@@ -36,7 +38,7 @@ class AppWrite extends CloudService {
   }
 
   @override
-  Future<Map<String, int>> checkGroups(Iterable<String> groups) async {
+  Future<Map<String, List<int>>> checkGroups(Iterable<String> groups) async {
     var e = await functions.createExecution(
       functionId: 'elaine_worker',
       method: ExecutionMethod.pOST,
@@ -45,14 +47,17 @@ class AppWrite extends CloudService {
     );
     try {
       final res = jsonDecode(e.responseBody);
-      return {for (var g in groups) g: res[g]};
+      return {for (var g in groups) g: (res[g] as List).cast()};
     } catch (_) {
-      return {for (var g in groups) g: 0};
+      return {
+        for (var g in groups) g: [0, 0],
+      };
     }
   }
 
   @override
   Future<bool> syncThreads(Iterable<Group> groups) async {
+    if (groups.isEmpty) return true;
     final ids = groups.map((e) => e.id).toList();
     final channels = ids.map((e) => 'databases.elaine.tables.groups.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
@@ -69,7 +74,7 @@ class AppWrite extends CloudService {
     }
 
     final waiting = names.toSet();
-    final stream = subscription.stream.timeout(const Duration(seconds: 10));
+    final stream = subscription.stream.timeout(10.seconds);
     try {
       await for (var response in stream) {
         final data = response.payload;
@@ -117,6 +122,37 @@ class AppWrite extends CloudService {
       ],
     );
     return rows.rows.map((e) => Thread(e.data)).toList();
+  }
+
+  @override
+  Future<List<Future<Post>>> syncPosts(Iterable<Post> posts) async {
+    if (posts.isEmpty) return [];
+    final ids = posts.map((e) => e.id).toList();
+    final channels = ids.map((e) => 'databases.elaine.tables.posts.rows.$e');
+    final subscription = realtime.subscribe(channels.toList());
+
+    final msgids = posts.map((e) => e.msgid).toList();
+    final data = '[${msgids.map((e) => '"$e"').join(',')}]';
+    functions.createExecution(
+      functionId: 'elaine_worker',
+      xasync: true,
+      method: ExecutionMethod.pOST,
+      headers: {'content-type': 'application/json'},
+      body: '{"action":"get_bodies","data":$data}',
+    );
+
+    final waiting = {for (var msgid in msgids) msgid: Completer<Post>()};
+
+    final stream = subscription.stream.timeout(const Duration(seconds: 10));
+    try {
+      await for (var response in stream) {
+        final data = response.payload;
+        waiting[data['msgid']]?.complete(Post(data));
+      }
+    } finally {
+      await subscription.close();
+    }
+    return waiting.values.map((e) => e.future).toList();
   }
 
   @override

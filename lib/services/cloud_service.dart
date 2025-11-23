@@ -7,7 +7,7 @@ typedef RowData = Map<String, dynamic>;
 abstract class CloudService {
   Future<List<Group>> getGroups({Iterable<String>? groups});
 
-  Future<Map<String, int>> checkGroups(Iterable<String> groups);
+  Future<Map<String, List<int>>> checkGroups(Iterable<String> groups);
 
   Future<bool> syncThreads(Iterable<Group> groups);
 
@@ -18,6 +18,8 @@ abstract class CloudService {
     int limit,
     String? cursor,
   );
+
+  Future<List<Future<Post>>> syncPosts(Iterable<Post> posts);
 
   Future<Post?> getPost(String msgid);
 

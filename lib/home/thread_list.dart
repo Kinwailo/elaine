@@ -3,7 +3,9 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
+import '../app/const.dart';
 import '../app/utils.dart';
 import 'home_store.dart';
 
@@ -17,46 +19,15 @@ class ThreadList extends HookWidget {
     final extra = home.noMoreThreads ? 0 : 1;
     estimateTextHeight('（）', mainTextStyle);
     final controller = useScrollController();
-    final anim = useAnimationController(duration: Durations.medium2);
+    final anim = useAnimationController(duration: 200.ms);
     useAnimation(anim);
     useListenable(home.threads);
-    useListenable(home.syncTotal);
     return Row(
       children: [
         SizedBox(
           width: 400,
           child: Scaffold(
-            appBar: AppBar(
-              toolbarHeight: kToolbarHeight - 12,
-              title: Text('12345', style: mainTextStyle),
-              titleSpacing: 10,
-              bottom: SyncStateBar(anim),
-              actionsPadding: EdgeInsets.only(right: 2),
-              actions: [
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.create),
-                  padding: EdgeInsetsGeometry.all(0),
-                  style: IconButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    home.refreshGroups();
-                  },
-                  icon: Icon(Icons.refresh),
-                  padding: EdgeInsetsGeometry.all(0),
-                  style: IconButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            appBar: ThreadAppBar(anim),
             body: Scrollbar(
               controller: controller,
               thumbVisibility: true,
@@ -112,6 +83,60 @@ class ThreadList extends HookWidget {
   }
 }
 
+class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
+  ThreadAppBar(this.anim, {super.key});
+
+  final AnimationController anim;
+
+  @override
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight - 12 + _syncStateBar.preferredSize.height);
+
+  late final SyncStateBar _syncStateBar = SyncStateBar(anim);
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    final refreshing = home.refreshing.value;
+    useListenable(home.refreshing);
+    return AppBar(
+      toolbarHeight: kToolbarHeight - 12,
+      title: Text('', style: mainTextStyle),
+      titleSpacing: 10,
+      bottom: _syncStateBar,
+      actionsPadding: EdgeInsets.only(right: 2),
+      actions: [
+        IconButton(
+          onPressed: () {},
+          icon: Icon(Icons.create),
+          padding: EdgeInsetsGeometry.all(0),
+          style: IconButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: () {
+            home.refreshGroups();
+          },
+          icon: refreshing
+              ? Icon(Icons.refresh)
+                    .animate(onPlay: (anim) => anim.repeat())
+                    .rotate(duration: 1.seconds)
+              : Icon(Icons.refresh),
+          padding: EdgeInsetsGeometry.all(0),
+          style: IconButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class SyncStateBar extends HookWidget implements PreferredSizeWidget {
   const SyncStateBar(this.anim, {super.key});
 
@@ -123,10 +148,19 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final home = Modular.get<HomeStore>();
+    final syncTotal = home.syncTotal.value;
+    final msg = syncTotal > 0
+        ? syncOverviewText.format([syncTotal])
+        : syncTotal == 0
+        ? syncOverviewFinishText
+        : syncOverviewTimeoutText;
     useValueChanged(
-      home.syncTotal.value,
-      (_, _) => home.syncTotal.value > 0 ? anim.forward() : anim.reverse(),
+      syncTotal,
+      (_, _) => syncTotal > 0
+          ? anim.forward()
+          : Future.delayed(2.seconds, () => anim.reverse()),
     );
+    useListenable(home.syncTotal);
     return Column(
       children: [
         Divider(height: 1),
@@ -140,17 +174,16 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
                 child: Row(
                   children: [
                     Text(
-                      '從新聞組同步${home.syncTotal.value}條發言中…',
-                      style: pinnedTextStyle,
+                      msg,
+                      style: syncTotal == -1 ? errorTextStyle : pinnedTextStyle,
                     ),
                     Spacer(),
-                    SizedBox(
-                      width: 20,
-                      child: Center(
-                        child: SizedBox(
-                          width: anim.value * 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                    AnimatedOpacity(
+                      opacity: syncTotal > 0 && anim.value == 1 ? 1 : 0,
+                      duration: 200.ms,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        constraints: BoxConstraints.expand(width: 20),
                       ),
                     ),
                   ],

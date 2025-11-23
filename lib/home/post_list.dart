@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:elaine/app/const.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -92,12 +93,12 @@ class PostList extends HookWidget {
                           ),
                         4,
                       ].sum,
-                    if (post.text?.isNotEmpty ?? true)
-                      estimateTextHeight(
-                        post.text ?? syncBodyText,
-                        style.merge(mainTextStyle),
-                        maxWidth: maxWidth,
-                      ),
+                    // if (post.text?.isNotEmpty ?? true)
+                    estimateTextHeight(
+                      post.text ?? syncBodyText,
+                      style.merge(mainTextStyle),
+                      maxWidth: maxWidth,
+                    ),
                     if (images.isNotEmpty)
                       images
                           .map((e) => e.value?.size)
@@ -172,7 +173,8 @@ class PostTile extends HookWidget {
             children: <Widget>[
               PostTileHeadbar(index),
               if (quote.value != null) PostTileQuote(quote, qFiles),
-              if (post.text?.isNotEmpty ?? true) PostTileText(index),
+              // if (post.text?.isNotEmpty ?? true) PostTileText(index),
+              PostTileText(index),
               if (files.isNotEmpty) PostTileImages(files),
             ].separator(const SizedBox(height: 8)),
           ),
@@ -192,8 +194,22 @@ class PostTileText extends StatelessWidget {
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
     return post.text == null
-        ? Text(syncBodyText, style: mainTextStyle)
-        : Text(post.text!, style: mainTextStyle);
+        ? Text.rich(
+            TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: SizedBox.square(
+                    dimension: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                WidgetSpan(child: SizedBox(width: 4)),
+                TextSpan(text: syncBodyText, style: mainTextStyle),
+              ],
+            ),
+          )
+        : Text(post.text!.noEmpty, style: mainTextStyle);
   }
 }
 
@@ -233,6 +249,7 @@ class PostTileQuote extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final text = quote.value!.text?.noEmpty;
     useListenable(quote);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,10 +280,16 @@ class PostTileQuote extends HookWidget {
                   text: '${quote.value!.sender}: ',
                   style: senderTextStyle,
                   children: [
-                    TextSpan(
-                      text: quote.value!.text ?? syncBodyText,
-                      style: subTextStyle,
-                    ),
+                    if (text == null)
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: SizedBox.square(
+                          dimension: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1),
+                        ),
+                      ),
+                    if (text == null) WidgetSpan(child: SizedBox(width: 4)),
+                    TextSpan(text: text ?? syncBodyText, style: subTextStyle),
                   ],
                 ),
                 maxLines: 3,
