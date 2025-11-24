@@ -48,18 +48,27 @@ extension SeparatorExtension<T> on Iterable<T> {
       isEmpty ? [] : skip(1).fold([first], (v, e) => v..addAll([item, e]));
 }
 
+final textHeightCache = <(String, TextStyle, int?, double), double>{};
+
 double estimateTextHeight(
   String text,
   TextStyle style, {
   int? maxLines,
   double maxWidth = double.infinity,
 }) {
+  final height = textHeightCache[(text, style, maxLines, maxWidth)];
+  if (height != null) return height;
   final TextPainter textPainter = TextPainter(
     text: TextSpan(text: text, style: style),
     maxLines: maxLines,
     textDirection: TextDirection.ltr,
   )..layout(maxWidth: maxWidth);
-  return textPainter.height + 1;
+  return textHeightCache.putIfAbsent((
+    text,
+    style,
+    maxLines,
+    maxWidth,
+  ), () => textPainter.height + 1);
 }
 
 double estimateWrappedHeight(
