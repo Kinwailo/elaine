@@ -241,12 +241,13 @@ class ThreadTile extends HookWidget {
     return Link(
       uri: Uri.parse(link),
       builder: (_, follow) => InkWell(
-        // onTap: () => follow?.call().whenComplete(
-        //   () => home.updateThreadTile(thread.number),
-        // ),
-        onTap: () => Modular.to
-            .pushReplacementNamed(link)
-            .whenComplete(() => home.updateThreadTile(thread.number)),
+        onTap: () async {
+          Modular.to.pushNamedAndRemoveUntil(
+            link,
+            ModalRoute.withName('/${thread.group}/'),
+          );
+          home.updateThreadTile(thread.number);
+        },
         child: Container(
           color: color,
           child: Padding(
