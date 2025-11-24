@@ -7,13 +7,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../app/const.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 
 typedef PostNotifier = ValueNotifier<Post>;
 typedef QuoteNotifier = ValueNotifier<Post?>;
 typedef ImageNotifier = ValueNotifier<ImageData?>;
-typedef ImageNotifierList = List<ImageNotifier>;
+typedef ImageNotifierList = ListNotifier<ImageNotifier>;
 
 const String defaultGroup = 'general.chat';
 
@@ -34,10 +35,14 @@ class PostData {
   PostData(Post post) {
     data.value = post;
     quote = QuoteNotifier(null);
-    images = [];
-    for (var _ in post.files) {
-      images.add(ImageNotifier(null));
-    }
+    images = ListNotifier<ImageNotifier>(
+      post.files.map((_) => ImageNotifier(null)).toList(),
+    );
+  }
+
+  void setData(Post post) {
+    data.value = post;
+    images.value = post.files.map((_) => ImageNotifier(null)).toList();
   }
 }
 
@@ -193,10 +198,6 @@ class HomeStore {
     _threads.append(items);
   }
 
-  PostNotifier? getPostNotifier(String msgid) {
-    return _postMap[msgid]?.data;
-  }
-
   Listenable get allPostsListenable =>
       Listenable.merge(_postMap.values.map((e) => e.data));
 
@@ -221,28 +222,36 @@ class HomeStore {
     } else {
       _cursorPosts = items.last.id;
     }
-    // _postMap.addAll({for (var item in items) item.msgid: PostData(item)});
     for (var item in items) {
-      _postMap.putIfAbsent(item.msgid, () => PostData(item)).data.value = item;
+      _postMap.putIfAbsent(item.msgid, () => PostData(item)).setData(item);
     }
     _posts.append(items);
 
     final futures = await cloud.syncPosts(items.where((e) => e.text == null));
     for (var e in futures.entries) {
       if (_postMap.containsKey(e.key)) {
-        e.value.then((v) => _postMap[e.key]?.data.value = v);
+        e.value.then((v) => _postMap[e.key]?.setData(v));
       }
     }
   }
 
-  Post? _getPostByMsgid(String msgid) {
-    // final post = _posts.value.where((e) => e.msgid == msgid).firstOrNull;
-    // return post ?? _postMap[msgid]?.data.value;
+  PostNotifier? getPostNotifier(String msgid) {
+    return _postMap[msgid]?.data;
+  }
+
+  String getPostText(String msgid) {
+    final post = _getPost(msgid);
+    if (post == null || post.text == null) return syncBodyText;
+    final text = post.text!;
+    return (text.isEmpty && post.files.isEmpty) ? emptyText : text;
+  }
+
+  Post? _getPost(String msgid) {
     return _postMap[msgid]?.data.value;
   }
 
   Future<Post?> _getQuote(String msgid) async {
-    final post = _getPostByMsgid(msgid);
+    final post = _getPost(msgid);
     if (post == null || post.ref.isEmpty) return null;
     Post? previous;
 
@@ -291,21 +300,17 @@ class HomeStore {
     return ImageData(data, size);
   }
 
-  ImageNotifierList getFilesNotifier(String msgid) {
-    final data = _postMap[msgid];
-    if (data?.data.value.text == null) return [];
-    return data?.images ?? [];
+  ImageNotifierList? getFilesNotifier(String msgid) {
+    return _postMap[msgid]?.images;
   }
 
   ImageNotifierList setFilesNotifier(String msgid) {
     final images = getFilesNotifier(msgid);
-    if (images.isEmpty) return [];
-    if (images.any((e) => e.value != null)) return images;
-    final data = _getPostByMsgid(
-      msgid,
-    )?.files.map((e) => _getImageData(e)).toList();
-    if (data == null) return [];
-    final zipped = IterableZip([data, images]);
+    if (images == null) return ImageNotifierList([]);
+    if (images.value.every((e) => e.value != null)) return images;
+    final data = _getPost(msgid)?.files.map((e) => _getImageData(e)).toList();
+    if (data == null) return ImageNotifierList([]);
+    final zipped = IterableZip([data, images.value]);
     for (var pair in zipped) {
       (pair[0] as Future<ImageData>).then((value) {
         (pair[1] as ImageNotifier).value = value;
@@ -314,6 +319,8 @@ class HomeStore {
     return images;
   }
 
-  Listenable get allImagesListenable =>
-      Listenable.merge(_postMap.values.map((e) => e.images).flattened);
+  Listenable get allImagesListenable => Listenable.merge([
+    ..._postMap.values.map((e) => e.images),
+    ..._postMap.values.map((e) => e.images.value).flattened,
+  ]);
 }

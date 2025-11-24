@@ -57,11 +57,12 @@ class PostList extends HookWidget {
                   if (index == count) return 8;
                   final style = DefaultTextStyle.of(context).style;
                   final post = home.posts[index];
-                  final body = home.getPostNotifier(post.msgid)?.value.text;
+                  final body = home.getPostText(post.msgid);
                   final quote = home.getQuoteNotifier(post.msgid).value;
-                  final images = home.getFilesNotifier(post.msgid);
-                  final qText = home.getPostNotifier(quote?.msgid ?? '')?.value;
-                  final qFiles = home.getFilesNotifier(quote?.msgid ?? '');
+                  final images = home.getFilesNotifier(post.msgid)?.value;
+                  final qMsgid = quote?.msgid ?? '';
+                  final qText = home.getPostText(qMsgid);
+                  final qFiles = home.getFilesNotifier(qMsgid)?.value;
                   final maxWidth = dimensions.crossAxisExtent - 40;
                   final qMaxWidth = maxWidth - 12.5;
 
@@ -76,14 +77,14 @@ class PostList extends HookWidget {
                       [
                         4,
                         estimateTextHeight(
-                          '${quote.sender}: ${qText?.text ?? syncBodyText}',
+                          '${quote.sender}：$qText',
                           style.merge(senderTextStyle),
                           maxLines: 3,
                           maxWidth: qMaxWidth,
                         ),
-                        if (qFiles.isNotEmpty)
+                        if (qFiles?.isNotEmpty ?? false)
                           estimateWrappedHeight(
-                            qFiles
+                            qFiles!
                                 .map((e) => e.value)
                                 .map(
                                   (e) => e == null
@@ -95,14 +96,14 @@ class PostList extends HookWidget {
                           ),
                         4,
                       ].sum,
-                    // if (body?.isNotEmpty ?? true)
-                    estimateTextHeight(
-                      body ?? syncBodyText,
-                      style.merge(mainTextStyle),
-                      maxWidth: maxWidth,
-                    ),
-                    if (images.isNotEmpty)
-                      images
+                    if (body.isNotEmpty)
+                      estimateTextHeight(
+                        body,
+                        style.merge(mainTextStyle),
+                        maxWidth: maxWidth,
+                      ),
+                    if (images?.isNotEmpty ?? false)
+                      images!
                           .map((e) => e.value?.size)
                           .map(
                             (e) => e == null
@@ -158,14 +159,15 @@ class PostTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
-    final listen = home.getPostNotifier(post.msgid);
-    final keys = [post.msgid, listen?.value];
+    final text = home.getPostText(post.msgid);
+    final keys = [post.msgid];
     final quote = useMemoized(() => home.setQuoteNotifier(post.msgid), keys);
     final files = useMemoized(() => home.setFilesNotifier(post.msgid), keys);
     final qMsgid = quote.value?.msgid ?? '';
     keys.add(qMsgid);
     final qFiles = useMemoized(() => home.setFilesNotifier(qMsgid), keys);
-    useListenable(listen);
+    useListenable(files);
+    useListenable(home.getPostNotifier(post.msgid));
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -177,8 +179,8 @@ class PostTile extends HookWidget {
             children: <Widget>[
               PostTileHeadbar(index),
               if (quote.value != null) PostTileQuote(qMsgid, quote, qFiles),
-              // if (post.text?.isNotEmpty ?? true) PostTileText(index),
-              PostTileText(index),
+              if (text.isNotEmpty) PostTileText(index),
+              // PostTileText(index),
               if (files.isNotEmpty) PostTileImages(files),
             ].separator(const SizedBox(height: 8)),
           ),
@@ -198,9 +200,9 @@ class PostTileText extends HookWidget {
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
     final listen = home.getPostNotifier(post.msgid);
-    final body = listen?.value.text;
+    final text = home.getPostText(post.msgid);
     useListenable(listen);
-    return body == null
+    return listen?.value.text == null
         ? Text.rich(
             TextSpan(
               children: [
@@ -216,7 +218,7 @@ class PostTileText extends HookWidget {
               ],
             ),
           )
-        : Text(body.noEmpty, style: mainTextStyle);
+        : Text(text, style: mainTextStyle);
   }
 }
 
@@ -259,7 +261,7 @@ class PostTileQuote extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
     final post = home.getPostNotifier(msgid);
-    final text = post?.value.text?.noEmpty;
+    final text = home.getPostText(msgid);
     useListenable(post);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +292,7 @@ class PostTileQuote extends HookWidget {
                   text: '${quote.value!.sender}: ',
                   style: senderTextStyle,
                   children: [
-                    if (text == null)
+                    if (post?.value.text == null) ...[
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: SizedBox.square(
@@ -298,8 +300,10 @@ class PostTileQuote extends HookWidget {
                           child: CircularProgressIndicator(strokeWidth: 1),
                         ),
                       ),
-                    if (text == null) WidgetSpan(child: SizedBox(width: 4)),
-                    TextSpan(text: text ?? syncBodyText, style: subTextStyle),
+                      WidgetSpan(child: SizedBox(width: 4)),
+                      TextSpan(text: syncBodyText, style: subTextStyle),
+                    ],
+                    TextSpan(text: text, style: subTextStyle),
                   ],
                 ),
                 maxLines: 3,
@@ -320,11 +324,11 @@ class PostTileImages extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    useListenable(Listenable.merge(images));
+    useListenable(Listenable.merge(images.value));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...images
+        ...images.value
             .map((e) => e.value)
             .map(
               (e) => e == null
@@ -352,10 +356,10 @@ class PostTilePreviews extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    useListenable(Listenable.merge(images));
+    useListenable(Listenable.merge(images.value));
     return Wrap(
       children: [
-        ...images
+        ...images.value
             .map((e) => e.value)
             .map(
               (e) => e == null

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:elaine/app/const.dart';
 import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -32,7 +31,6 @@ Future<Size> getImageSize(Uint8List data) async {
 }
 
 extension StringFormatter on String {
-  String get noEmpty => isEmpty ? emptyText : this;
   String format(List<dynamic> values) =>
       values.fold(this, (v, e) => v.replaceFirst('%s', e.toString()));
 }
