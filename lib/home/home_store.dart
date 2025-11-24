@@ -277,6 +277,13 @@ class HomeStore {
   Listenable get allQuotesListenable =>
       Listenable.merge(_postMap.values.map((e) => e.quote));
 
+  Listenable get allQuotesTextListenable => Listenable.merge(
+    _postMap.values
+        .map((e) => e.quote)
+        .nonNulls
+        .map((e) => getPostNotifier(e.value?.msgid ?? '')),
+  );
+
   Future<ImageData> _getImageData(String id) async {
     final cloud = Modular.get<CloudService>();
     final data = await cloud.getFile(id);
@@ -285,12 +292,14 @@ class HomeStore {
   }
 
   ImageNotifierList getFilesNotifier(String msgid) {
-    return _postMap[msgid]?.images ?? [];
+    final data = _postMap[msgid];
+    if (data?.data.value.text == null) return [];
+    return data?.images ?? [];
   }
 
   ImageNotifierList setFilesNotifier(String msgid) {
-    final images = _postMap[msgid]?.images;
-    if (images == null) return [];
+    final images = getFilesNotifier(msgid);
+    if (images.isEmpty) return [];
     if (images.any((e) => e.value != null)) return images;
     final data = _getPostByMsgid(
       msgid,

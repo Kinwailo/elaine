@@ -21,6 +21,7 @@ class PostList extends HookWidget {
     useListenable(home.posts);
     useListenable(home.allPostsListenable);
     useListenable(home.allQuotesListenable);
+    useListenable(home.allQuotesTextListenable);
     useListenable(home.allImagesListenable);
     return Scaffold(
       appBar: AppBar(
@@ -59,6 +60,7 @@ class PostList extends HookWidget {
                   final body = home.getPostNotifier(post.msgid)?.value.text;
                   final quote = home.getQuoteNotifier(post.msgid).value;
                   final images = home.getFilesNotifier(post.msgid);
+                  final qText = home.getPostNotifier(quote?.msgid ?? '')?.value;
                   final qFiles = home.getFilesNotifier(quote?.msgid ?? '');
                   final maxWidth = dimensions.crossAxisExtent - 40;
                   final qMaxWidth = maxWidth - 12.5;
@@ -74,7 +76,7 @@ class PostList extends HookWidget {
                       [
                         4,
                         estimateTextHeight(
-                          '${quote.sender}: ${quote.text ?? syncBodyText}',
+                          '${quote.sender}: ${qText?.text ?? syncBodyText}',
                           style.merge(senderTextStyle),
                           maxLines: 3,
                           maxWidth: qMaxWidth,
@@ -156,12 +158,14 @@ class PostTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
-    final keys = [post.msgid];
+    final listen = home.getPostNotifier(post.msgid);
+    final keys = [post.msgid, listen?.value];
     final quote = useMemoized(() => home.setQuoteNotifier(post.msgid), keys);
     final files = useMemoized(() => home.setFilesNotifier(post.msgid), keys);
     final qMsgid = quote.value?.msgid ?? '';
     keys.add(qMsgid);
     final qFiles = useMemoized(() => home.setFilesNotifier(qMsgid), keys);
+    useListenable(listen);
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -172,7 +176,7 @@ class PostTile extends HookWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               PostTileHeadbar(index),
-              if (quote.value != null) PostTileQuote(quote, qFiles),
+              if (quote.value != null) PostTileQuote(qMsgid, quote, qFiles),
               // if (post.text?.isNotEmpty ?? true) PostTileText(index),
               PostTileText(index),
               if (files.isNotEmpty) PostTileImages(files),
@@ -244,16 +248,19 @@ class PostTileHeadbar extends HookWidget {
 }
 
 class PostTileQuote extends HookWidget {
-  const PostTileQuote(this.quote, this.qFiles, {super.key});
+  const PostTileQuote(this.msgid, this.quote, this.qFiles, {super.key});
 
+  final String msgid;
   final QuoteNotifier quote;
   final ImageNotifierList qFiles;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final text = quote.value!.text?.noEmpty;
-    useListenable(quote);
+    final home = Modular.get<HomeStore>();
+    final post = home.getPostNotifier(msgid);
+    final text = post?.value.text?.noEmpty;
+    useListenable(post);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
