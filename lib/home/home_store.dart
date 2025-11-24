@@ -10,8 +10,10 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 
+typedef PostNotifier = ValueNotifier<Post>;
 typedef QuoteNotifier = ValueNotifier<Post?>;
-typedef ImageNotifierList = List<ValueNotifier<ImageData?>>;
+typedef ImageNotifier = ValueNotifier<ImageData?>;
+typedef ImageNotifierList = List<ImageNotifier>;
 
 const String defaultGroup = 'general.chat';
 
@@ -25,15 +27,16 @@ class GroupData {
 }
 
 class PostData {
-  final Post data;
+  final data = PostNotifier(Post({}));
   late final QuoteNotifier quote;
   late final ImageNotifierList images;
 
-  PostData(this.data) {
+  PostData(Post post) {
+    data.value = post;
     quote = QuoteNotifier(null);
     images = [];
-    for (var _ in data.files) {
-      images.add(ValueNotifier<ImageData?>(null));
+    for (var _ in post.files) {
+      images.add(ImageNotifier(null));
     }
   }
 }
@@ -190,6 +193,13 @@ class HomeStore {
     _threads.append(items);
   }
 
+  PostNotifier? getPostNotifier(String msgid) {
+    return _postMap[msgid]?.data;
+  }
+
+  Listenable get allPostsListenable =>
+      Listenable.merge(_postMap.values.map((e) => e.data));
+
   void refreshPosts() {
     _cursorPosts = null;
     _noMorePosts = false;
@@ -211,15 +221,24 @@ class HomeStore {
     } else {
       _cursorPosts = items.last.id;
     }
-    _postMap.addAll({for (var item in items) item.msgid: PostData(item)});
+    // _postMap.addAll({for (var item in items) item.msgid: PostData(item)});
+    for (var item in items) {
+      _postMap.putIfAbsent(item.msgid, () => PostData(item)).data.value = item;
+    }
     _posts.append(items);
 
     final futures = await cloud.syncPosts(items.where((e) => e.text == null));
+    for (var e in futures.entries) {
+      if (_postMap.containsKey(e.key)) {
+        e.value.then((v) => _postMap[e.key]?.data.value = v);
+      }
+    }
   }
 
   Post? _getPostByMsgid(String msgid) {
-    final post = _posts.value.where((e) => e.msgid == msgid).firstOrNull;
-    return post ?? _postMap[msgid]?.data;
+    // final post = _posts.value.where((e) => e.msgid == msgid).firstOrNull;
+    // return post ?? _postMap[msgid]?.data.value;
+    return _postMap[msgid]?.data.value;
   }
 
   Future<Post?> _getQuote(String msgid) async {
@@ -280,7 +299,7 @@ class HomeStore {
     final zipped = IterableZip([data, images]);
     for (var pair in zipped) {
       (pair[0] as Future<ImageData>).then((value) {
-        (pair[1] as ValueNotifier<ImageData?>).value = value;
+        (pair[1] as ImageNotifier).value = value;
       });
     }
     return images;

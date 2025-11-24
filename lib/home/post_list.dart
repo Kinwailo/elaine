@@ -19,6 +19,7 @@ class PostList extends HookWidget {
     final extra = home.noMorePosts ? 0 : 1;
     final controller = useScrollController();
     useListenable(home.posts);
+    useListenable(home.allPostsListenable);
     useListenable(home.allQuotesListenable);
     useListenable(home.allImagesListenable);
     return Scaffold(
@@ -55,11 +56,10 @@ class PostList extends HookWidget {
                   if (index == count) return 8;
                   final style = DefaultTextStyle.of(context).style;
                   final post = home.posts[index];
-                  final quote = home.getQuoteNotifier(post.msgid);
+                  final body = home.getPostNotifier(post.msgid)?.value.text;
+                  final quote = home.getQuoteNotifier(post.msgid).value;
                   final images = home.getFilesNotifier(post.msgid);
-                  final qFiles = home.getFilesNotifier(
-                    quote.value?.msgid ?? '',
-                  );
+                  final qFiles = home.getFilesNotifier(quote?.msgid ?? '');
                   final maxWidth = dimensions.crossAxisExtent - 40;
                   final qMaxWidth = maxWidth - 12.5;
 
@@ -70,11 +70,11 @@ class PostList extends HookWidget {
                       style.merge(senderTextStyle),
                       maxWidth: maxWidth,
                     ),
-                    if (quote.value != null)
+                    if (quote != null)
                       [
                         4,
                         estimateTextHeight(
-                          '${quote.value!.sender}: ${quote.value?.text ?? syncBodyText}',
+                          '${quote.sender}: ${quote.text ?? syncBodyText}',
                           style.merge(senderTextStyle),
                           maxLines: 3,
                           maxWidth: qMaxWidth,
@@ -93,9 +93,9 @@ class PostList extends HookWidget {
                           ),
                         4,
                       ].sum,
-                    // if (post.text?.isNotEmpty ?? true)
+                    // if (body?.isNotEmpty ?? true)
                     estimateTextHeight(
-                      post.text ?? syncBodyText,
+                      body ?? syncBodyText,
                       style.merge(mainTextStyle),
                       maxWidth: maxWidth,
                     ),
@@ -184,7 +184,7 @@ class PostTile extends HookWidget {
   }
 }
 
-class PostTileText extends StatelessWidget {
+class PostTileText extends HookWidget {
   const PostTileText(this.index, {super.key});
 
   final int index;
@@ -193,7 +193,10 @@ class PostTileText extends StatelessWidget {
   Widget build(BuildContext context) {
     final home = Modular.get<HomeStore>();
     final post = home.posts[index];
-    return post.text == null
+    final listen = home.getPostNotifier(post.msgid);
+    final body = listen?.value.text;
+    useListenable(listen);
+    return body == null
         ? Text.rich(
             TextSpan(
               children: [
@@ -209,7 +212,7 @@ class PostTileText extends StatelessWidget {
               ],
             ),
           )
-        : Text(post.text!.noEmpty, style: mainTextStyle);
+        : Text(body.noEmpty, style: mainTextStyle);
   }
 }
 

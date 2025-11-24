@@ -125,8 +125,8 @@ class AppWrite extends CloudService {
   }
 
   @override
-  Future<List<Future<Post>>> syncPosts(Iterable<Post> posts) async {
-    if (posts.isEmpty) return [];
+  Future<SyncPostsData> syncPosts(Iterable<Post> posts) async {
+    if (posts.isEmpty) return {};
     final ids = posts.map((e) => e.id).toList();
     final channels = ids.map((e) => 'databases.elaine.tables.posts.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
@@ -143,16 +143,19 @@ class AppWrite extends CloudService {
 
     final waiting = {for (var msgid in msgids) msgid: Completer<Post>()};
 
-    final stream = subscription.stream.timeout(const Duration(seconds: 10));
+    final stream = subscription.stream.timeout(10.seconds);
     try {
       await for (var response in stream) {
         final data = response.payload;
         waiting[data['msgid']]?.complete(Post(data));
+        if (waiting.values.every((e) => e.isCompleted)) break;
       }
     } finally {
       await subscription.close();
     }
-    return waiting.values.map((e) => e.future).toList();
+    return {
+      for (var e in waiting.entries) e.key: e.value.future.timeout(10.seconds),
+    };
   }
 
   @override
