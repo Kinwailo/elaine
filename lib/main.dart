@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:meta_seo/meta_seo.dart';
 
 import 'app/app_theme.dart';
 import 'home/home_page.dart';
@@ -8,6 +10,7 @@ import 'home/home_store.dart';
 
 void main() {
   usePathUrlStrategy();
+  if (kIsWeb) MetaSEO().config();
   runApp(ModularApp(module: AppModule(), child: AppWidget()));
 }
 

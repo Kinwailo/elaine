@@ -6,6 +6,7 @@ import 'package:elaine/services/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:meta_seo/meta_seo.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
@@ -157,6 +158,11 @@ class HomeStore {
     if (thread == null) return;
     if (this.thread.number != number) refreshPosts();
     _thread.value = thread;
+
+    if (kIsWeb) {
+      final meta = MetaSEO();
+      meta.ogTitle(ogTitle: thread.subject);
+    }
   }
 
   int? getThreadTile(int? number) {
@@ -232,6 +238,11 @@ class HomeStore {
       if (_postMap.containsKey(e.key)) {
         e.value.then((v) => _postMap[e.key]?.setData(v));
       }
+    }
+
+    if (kIsWeb) {
+      final meta = MetaSEO();
+      meta.ogDescription(ogDescription: getPostText(_posts[0].msgid));
     }
   }
 

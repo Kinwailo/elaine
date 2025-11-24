@@ -180,7 +180,6 @@ class PostTile extends HookWidget {
               PostTileHeadbar(index),
               if (quote.value != null) PostTileQuote(qMsgid, quote, qFiles),
               if (text.isNotEmpty) PostTileText(index),
-              // PostTileText(index),
               if (files.isNotEmpty) PostTileImages(files),
             ].separator(const SizedBox(height: 8)),
           ),
