@@ -54,4 +54,6 @@ windows/flutter/generated_plugin_registrant.h
 windows/flutter/generated_plugins.cmake
 
 logo.png
+logo.svg
+maskable.svg
 test.py
