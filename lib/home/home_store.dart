@@ -6,7 +6,6 @@ import 'package:elaine/services/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:meta_seo/meta_seo.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
@@ -63,24 +62,29 @@ class HomeStore {
   String get selected => _selected;
   String _selected = '';
 
-  ListListenable<Thread> get threads => _threads;
-  final _threads = ListNotifier<Thread>([]);
-  bool get noMoreThreads => _noMoreThreads;
-  var _noMoreThreads = true;
-  Thread get thread => _thread.value;
-  final _thread = ValueNotifier<Thread>(Thread({}));
+  ListListenable<Thread> get backwardThreads => _backwardThreads;
+  final _backwardThreads = ListNotifier<Thread>([]);
+  ListListenable<Thread> get forwardThreads => _forwardThreads;
+  final _forwardThreads = ListNotifier<Thread>([]);
+  bool get reachStartThread => _reachStartThread;
+  var _reachStartThread = true;
+  bool get reachEndThread => _reachEndThread;
+  var _reachEndThread = true;
+  Thread get selectedThread => _selectThread.value;
+  final _selectThread = ValueNotifier<Thread>(Thread({}));
 
   ListListenable<Post> get posts => _posts;
   final _posts = ListNotifier<Post>([]);
-  bool get noMorePosts => _noMorePosts;
-  var _noMorePosts = true;
-  Post get post => _post.value;
-  final _post = ValueNotifier<Post>(Post({}));
+  bool get reachEndPost => _reachEndPost;
+  var _reachEndPost = true;
+  Post get selectedPost => _selectPost.value;
+  final _selectPost = ValueNotifier<Post>(Post({}));
   final _postMap = <String, PostData>{};
 
   static const _itemsPreFetch = 25;
 
-  String? _cursorThreads;
+  String? _cursorStartThreads;
+  String? _cursorEndThreads;
   String? _cursorPosts;
 
   ValueListenable<int?> get threadTile => _threadTile;
@@ -148,7 +152,7 @@ class HomeStore {
   }
 
   Future<void> selectThread(String group, int number) async {
-    var thread = threads.value
+    var thread = forwardThreads.value
         .where((e) => e.group == group && e.number == number)
         .firstOrNull;
     if (thread == null) {
@@ -156,12 +160,15 @@ class HomeStore {
       thread = await cloud.getThread(group, number);
     }
     if (thread == null) return;
-    if (this.thread.number != number) refreshPosts();
-    _thread.value = thread;
+    if (selectedThread.number != number) refreshPosts();
+    _selectThread.value = thread;
 
-    if (kIsWeb) {
-      final meta = MetaSEO();
-      meta.ogTitle(ogTitle: thread.subject);
+    if (_threadTile.value == null) {
+      _forwardThreads.append([thread]);
+      _cursorStartThreads = thread.id;
+      _reachStartThread = false;
+      _cursorEndThreads = thread.id;
+      _reachEndThread = false;
     }
   }
 
@@ -181,27 +188,52 @@ class HomeStore {
 
   Future<void> refreshThreads() async {
     await _updateGroupMap();
-    _cursorThreads = null;
-    _noMoreThreads = false;
-    _threads.clear();
+    _cursorStartThreads = null;
+    _reachStartThread = true;
+    _forwardThreads.clear();
+    _cursorEndThreads = null;
+    _reachEndThread = false;
+    _backwardThreads.clear();
     _threadTile.value = null;
   }
 
-  Future<void> loadMoreThreads() async {
-    if (_noMoreThreads) return;
+  Future<void> prependMoreThreads() async {
+    if (_reachStartThread || _cursorStartThreads == null) return;
     final cloud = Modular.get<CloudService>();
-    var items = await cloud.getThreads(
+    final order = ['date', 'latest', 'hot'];
+    final items = await cloud.getThreads(
       _groupMap.keys,
       _itemsPreFetch,
-      _cursorThreads,
+      order,
+      cursor: _cursorStartThreads,
+      reverse: true,
     );
-    _noMoreThreads = items.isEmpty || items.length < _itemsPreFetch;
-    if (_noMoreThreads) {
-      _cursorThreads = null;
+    _reachStartThread = items.isEmpty || items.length < _itemsPreFetch;
+    if (_reachStartThread) {
+      _cursorStartThreads = null;
     } else {
-      _cursorThreads = items.last.id;
+      _cursorStartThreads = items.first.id;
     }
-    _threads.append(items);
+    _backwardThreads.append(items.reversed);
+  }
+
+  Future<void> appendMoreThreads() async {
+    if (_reachEndThread) return;
+    final cloud = Modular.get<CloudService>();
+    final order = ['date', 'latest', 'hot'];
+    final items = await cloud.getThreads(
+      _groupMap.keys,
+      _itemsPreFetch,
+      order,
+      cursor: _cursorEndThreads,
+    );
+    _reachEndThread = items.isEmpty || items.length < _itemsPreFetch;
+    if (_reachEndThread) {
+      _cursorEndThreads = null;
+    } else {
+      _cursorEndThreads = items.last.id;
+    }
+    _forwardThreads.append(items);
   }
 
   Listenable get allPostsListenable =>
@@ -209,21 +241,21 @@ class HomeStore {
 
   void refreshPosts() {
     _cursorPosts = null;
-    _noMorePosts = false;
+    _reachEndPost = false;
     _posts.clear();
     _postMap.clear();
   }
 
   Future<void> loadMorePosts() async {
-    if (_noMorePosts) return;
+    if (_reachEndPost) return;
     final cloud = Modular.get<CloudService>();
     var items = await cloud.getPosts(
-      thread.msgid,
+      selectedThread.msgid,
       _itemsPreFetch,
       _cursorPosts,
     );
-    _noMorePosts = items.isEmpty || items.length < _itemsPreFetch;
-    if (_noMorePosts) {
+    _reachEndPost = items.isEmpty || items.length < _itemsPreFetch;
+    if (_reachEndPost) {
       _cursorPosts = null;
     } else {
       _cursorPosts = items.last.id;
@@ -238,11 +270,6 @@ class HomeStore {
       if (_postMap.containsKey(e.key)) {
         e.value.then((v) => _postMap[e.key]?.setData(v));
       }
-    }
-
-    if (kIsWeb) {
-      final meta = MetaSEO();
-      meta.ogDescription(ogDescription: getPostText(_posts[0].msgid));
     }
   }
 

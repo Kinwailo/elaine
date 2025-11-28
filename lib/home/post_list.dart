@@ -13,10 +13,10 @@ class PostList extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Key centerKey = ValueKey('centerKey');
+    const Key centerKey = ValueKey('centerPost');
     final home = Modular.get<HomeStore>();
     final count = home.posts.length;
-    final extra = home.noMorePosts ? 0 : 1;
+    final extra = home.reachEndPost ? 0 : 1;
     final controller = useScrollController();
     useListenable(home.posts);
     useListenable(home.allPostsListenable);
@@ -26,7 +26,10 @@ class PostList extends HookWidget {
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: kToolbarHeight - 12,
-        title: Text(home.thread.subject, overflow: TextOverflow.ellipsis),
+        title: Text(
+          home.selectedThread.subject,
+          overflow: TextOverflow.ellipsis,
+        ),
         titleSpacing: 10,
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
@@ -41,6 +44,7 @@ class PostList extends HookWidget {
         child: CustomScrollView(
           center: centerKey,
           controller: controller,
+          physics: AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
               key: centerKey,

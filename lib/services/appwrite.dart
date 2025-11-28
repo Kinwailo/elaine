@@ -108,17 +108,27 @@ class AppWrite extends CloudService {
   Future<List<Thread>> getThreads(
     Iterable<String> groups,
     int limit,
+    Iterable<String> order, {
     String? cursor,
-  ) async {
+    bool reverse = false,
+  }) async {
     if (groups.isEmpty) return [];
+    var q = [
+      Query.equal('group', groups.toList()),
+      ...order.map((e) => reverse ? Query.orderAsc(e) : Query.orderDesc(e)),
+      Query.limit(limit),
+      if (cursor != null)
+        reverse ? Query.cursorBefore(cursor) : Query.cursorAfter(cursor),
+    ];
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'threads',
       queries: [
         Query.equal('group', groups.toList()),
-        Query.orderDesc('date'),
+        ...order.map((e) => Query.orderDesc(e)),
         Query.limit(limit),
-        if (cursor != null) Query.cursorAfter(cursor),
+        if (cursor != null)
+          reverse ? Query.cursorBefore(cursor) : Query.cursorAfter(cursor),
       ],
     );
     return rows.rows.map((e) => Thread(e.data)).toList();

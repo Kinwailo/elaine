@@ -17,8 +17,10 @@ abstract class CloudService {
   Future<List<Thread>> getThreads(
     Iterable<String> groups,
     int limit,
+    Iterable<String> order, {
     String? cursor,
-  );
+    bool reverse = false,
+  });
 
   Future<SyncPostsData> syncPosts(Iterable<Post> posts);
 

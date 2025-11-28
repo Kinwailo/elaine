@@ -1,3 +1,4 @@
+import 'package:elaine/services/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -12,16 +13,37 @@ import 'home_store.dart';
 class ThreadList extends HookWidget {
   const ThreadList({super.key});
 
+  double getitemExtent(Thread thread, TextStyle style, double maxWidth) {
+    double height = 16;
+    height += estimateTextHeight(
+      thread.sender,
+      style.merge(senderTextStyle),
+      maxWidth: maxWidth,
+    );
+    height += 4;
+    height += estimateTextHeight(
+      thread.subject,
+      style.merge(mainTextStyle),
+      maxWidth: maxWidth,
+    );
+    height += 16;
+    return height;
+  }
+
   @override
   Widget build(BuildContext context) {
+    const Key centerKey = ValueKey('centerThread');
     final home = Modular.get<HomeStore>();
-    final count = home.threads.length;
-    final extra = home.noMoreThreads ? 0 : 1;
+    final countBackward = home.backwardThreads.length;
+    final extraBackward = home.reachStartThread ? 0 : 1;
+    final countForward = home.forwardThreads.length;
+    final extraForward = home.reachEndThread ? 0 : 1;
     estimateTextHeight('（）', mainTextStyle);
     final controller = useScrollController();
     final anim = useAnimationController(duration: 200.ms);
     useAnimation(anim);
-    useListenable(home.threads);
+    useListenable(home.forwardThreads);
+    useListenable(home.backwardThreads);
     return Row(
       children: [
         SizedBox(
@@ -34,40 +56,54 @@ class ThreadList extends HookWidget {
               trackVisibility: true,
               thickness: 8,
               child: CustomScrollView(
+                center: centerKey,
                 controller: controller,
+                physics: AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.only(right: 12),
                     sliver: SliverVariedExtentList.builder(
-                      itemCount: count + extra,
+                      itemCount: countBackward + extraBackward,
                       itemBuilder: (_, index) {
-                        return index >= count
-                            ? MoreThreads(key: UniqueKey())
+                        return index >= countBackward
+                            ? PrependMoreThreads(key: UniqueKey())
                             : ThreadTile(
-                                key: ValueKey(home.threads[index]),
+                                key: ValueKey(home.backwardThreads[index]),
                                 index,
+                                home.backwardThreads[index],
                               );
                       },
                       itemExtentBuilder: (index, dimensions) {
-                        if (index > count) return null;
-                        if (index == count) return 4;
+                        if (index > countBackward) return null;
+                        if (index == countBackward) return 4;
                         final style = DefaultTextStyle.of(context).style;
-                        final thread = home.threads[index];
+                        final thread = home.backwardThreads[index];
                         final maxWidth = dimensions.crossAxisExtent - 32;
-                        double height = 16;
-                        height += estimateTextHeight(
-                          thread.sender,
-                          style.merge(senderTextStyle),
-                          maxWidth: maxWidth,
-                        );
-                        height += 4;
-                        height += estimateTextHeight(
-                          thread.subject,
-                          style.merge(mainTextStyle),
-                          maxWidth: maxWidth,
-                        );
-                        height += 16;
-                        return height;
+                        return getitemExtent(thread, style, maxWidth);
+                      },
+                    ),
+                  ),
+                  SliverPadding(
+                    key: centerKey,
+                    padding: EdgeInsets.only(right: 12),
+                    sliver: SliverVariedExtentList.builder(
+                      itemCount: countForward + extraForward,
+                      itemBuilder: (_, index) {
+                        return index >= countForward
+                            ? AppendMoreThreads(key: UniqueKey())
+                            : ThreadTile(
+                                key: ValueKey(home.forwardThreads[index]),
+                                index,
+                                home.forwardThreads[index],
+                              );
+                      },
+                      itemExtentBuilder: (index, dimensions) {
+                        if (index > countForward) return null;
+                        if (index == countForward) return 4;
+                        final style = DefaultTextStyle.of(context).style;
+                        final thread = home.forwardThreads[index];
+                        final maxWidth = dimensions.crossAxisExtent - 32;
+                        return getitemExtent(thread, style, maxWidth);
                       },
                     ),
                   ),
@@ -197,8 +233,8 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
   }
 }
 
-class MoreThreads extends HookWidget {
-  const MoreThreads({super.key});
+class PrependMoreThreads extends HookWidget {
+  const PrependMoreThreads({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +245,27 @@ class MoreThreads extends HookWidget {
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          home.loadMoreThreads();
+          home.prependMoreThreads();
+        }
+      },
+      child: LinearProgressIndicator(),
+    );
+  }
+}
+
+class AppendMoreThreads extends HookWidget {
+  const AppendMoreThreads({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    final loaded = useState(false);
+    return VisibilityDetector(
+      key: key!,
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0.1 && !loaded.value) {
+          loaded.value = true;
+          home.appendMoreThreads();
         }
       },
       child: LinearProgressIndicator(),
@@ -218,16 +274,16 @@ class MoreThreads extends HookWidget {
 }
 
 class ThreadTile extends HookWidget {
-  const ThreadTile(this.index, {super.key});
+  const ThreadTile(this.index, this.thread, {super.key});
 
   final int index;
+  final Thread thread;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final home = Modular.get<HomeStore>();
-    final thread = home.threads[index];
-    final number = home.getThreadTile(home.thread.number);
+    final number = home.getThreadTile(home.selectedThread.number);
     final selected = thread.number == number;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -268,6 +324,7 @@ class ThreadTile extends HookWidget {
                     ),
                     Spacer(),
                     // if (hot > 0) Text('🔥$hot', style: subTextStyle),
+                    Text('#$index', style: subTextStyle),
                     const SizedBox(width: 16),
                     Text('💬${thread.total}', style: subTextStyle),
                   ],
