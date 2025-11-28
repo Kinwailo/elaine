@@ -324,7 +324,6 @@ class ThreadTile extends HookWidget {
                     ),
                     Spacer(),
                     // if (hot > 0) Text('🔥$hot', style: subTextStyle),
-                    Text('#$index', style: subTextStyle),
                     const SizedBox(width: 16),
                     Text('💬${thread.total}', style: subTextStyle),
                   ],

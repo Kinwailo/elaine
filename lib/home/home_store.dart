@@ -83,8 +83,8 @@ class HomeStore {
 
   static const _itemsPreFetch = 25;
 
-  String? _cursorStartThreads;
-  String? _cursorEndThreads;
+  String? _cursorStartThread;
+  String? _cursorEndThread;
   String? _cursorPosts;
 
   ValueListenable<int?> get threadTile => _threadTile;
@@ -165,9 +165,9 @@ class HomeStore {
 
     if (_threadTile.value == null) {
       _forwardThreads.append([thread]);
-      _cursorStartThreads = thread.id;
+      _cursorStartThread = thread.id;
       _reachStartThread = false;
-      _cursorEndThreads = thread.id;
+      _cursorEndThread = thread.id;
       _reachEndThread = false;
     }
   }
@@ -188,31 +188,31 @@ class HomeStore {
 
   Future<void> refreshThreads() async {
     await _updateGroupMap();
-    _cursorStartThreads = null;
+    _cursorStartThread = null;
     _reachStartThread = true;
     _forwardThreads.clear();
-    _cursorEndThreads = null;
+    _cursorEndThread = null;
     _reachEndThread = false;
     _backwardThreads.clear();
     _threadTile.value = null;
   }
 
   Future<void> prependMoreThreads() async {
-    if (_reachStartThread || _cursorStartThreads == null) return;
+    if (_reachStartThread || _cursorStartThread == null) return;
     final cloud = Modular.get<CloudService>();
     final order = ['date', 'latest', 'hot'];
     final items = await cloud.getThreads(
       _groupMap.keys,
       _itemsPreFetch,
       order,
-      cursor: _cursorStartThreads,
+      cursor: _cursorStartThread,
       reverse: true,
     );
     _reachStartThread = items.isEmpty || items.length < _itemsPreFetch;
     if (_reachStartThread) {
-      _cursorStartThreads = null;
+      _cursorStartThread = null;
     } else {
-      _cursorStartThreads = items.first.id;
+      _cursorStartThread = items.first.id;
     }
     _backwardThreads.append(items.reversed);
   }
@@ -225,13 +225,13 @@ class HomeStore {
       _groupMap.keys,
       _itemsPreFetch,
       order,
-      cursor: _cursorEndThreads,
+      cursor: _cursorEndThread,
     );
     _reachEndThread = items.isEmpty || items.length < _itemsPreFetch;
     if (_reachEndThread) {
-      _cursorEndThreads = null;
+      _cursorEndThread = null;
     } else {
-      _cursorEndThreads = items.last.id;
+      _cursorEndThread = items.last.id;
     }
     _forwardThreads.append(items);
   }
