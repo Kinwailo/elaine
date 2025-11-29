@@ -159,6 +159,7 @@ class PostStore {
   }
 
   Future<void> loadQuote(PostData post) async {
+    if (post.quote.value != null) return;
     final qMsgid = _getQuote(post);
     if (qMsgid == null) return;
     if (!_map.containsKey(qMsgid)) {
@@ -172,6 +173,7 @@ class PostStore {
 
   void loadImage(PostData post) {
     if (post.sync.value != true) return;
+    if (post.images.every((e) => e.value != null)) return;
     for (var (i, _) in post.data.files.indexed) {
       _loadImageData(post, i);
     }

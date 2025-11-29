@@ -21,7 +21,6 @@ class PostList extends HookWidget {
     final extra = posts.reachEnd ? 0 : 1;
     final controller = useScrollController();
     useListenable(posts.pItems);
-    useListenable(posts.all);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: kToolbarHeight - 12,
@@ -45,7 +44,7 @@ class PostList extends HookWidget {
         child: CustomScrollView(
           center: centerKey,
           controller: controller,
-          physics: AlwaysScrollableScrollPhysics(),
+          physics: ClampingScrollPhysics(),
           slivers: [
             SliverPadding(
               key: centerKey,
@@ -100,12 +99,10 @@ class PostTile extends HookWidget {
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
     final quote = post.quote.value;
-    useEffect(() {
-      posts.loadQuote(post);
-      posts.loadImage(post);
-      return null;
-    }, [post.data]);
+    posts.loadQuote(post);
+    posts.loadImage(post);
     useListenable(post.changed);
+    useListenable(post.quote.value?.changed);
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -294,6 +291,7 @@ class PostTilePreviews extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    useListenable(Listenable.merge(post.images));
     return Wrap(
       children: [
         ...post.images
@@ -303,8 +301,8 @@ class PostTilePreviews extends HookWidget {
                   ? SizedBox.square(
                       dimension: 64,
                       child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: CircularProgressIndicator(),
+                        padding: const EdgeInsets.all(20),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
                   : Image.memory(e.data, height: 100, fit: BoxFit.cover),

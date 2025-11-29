@@ -31,7 +31,8 @@ class ThreadStore {
 
   Future<void> select(String group, int number) async {
     if (selected.number == number) return;
-    var thread = pItems.value
+    var thread = nItems.value
+        .followedBy(pItems.value)
         .where((e) => e.group == group && e.number == number)
         .firstOrNull;
     if (thread == null) {

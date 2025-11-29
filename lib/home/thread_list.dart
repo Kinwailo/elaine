@@ -59,7 +59,7 @@ class ThreadList extends HookWidget {
               child: CustomScrollView(
                 center: centerKey,
                 controller: controller,
-                physics: AlwaysScrollableScrollPhysics(),
+                physics: ClampingScrollPhysics(),
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.only(right: 12),
@@ -70,7 +70,7 @@ class ThreadList extends HookWidget {
                             ? PrependMoreThreads(key: UniqueKey())
                             : ThreadTile(
                                 key: ValueKey(threads.nItems[index]),
-                                index,
+                                index + 1,
                                 threads.nItems[index],
                               );
                       },
