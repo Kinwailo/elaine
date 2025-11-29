@@ -15,7 +15,10 @@ extension StringUtils on String {
   String _stripAll(String text) {
     text = text.replaceAll('\u200b', '');
     text = text.stripSameContent('');
-    text = text.stripSignature([r'^-- ?$']);
+    text = text.stripSignature([
+      r'^-- ?$',
+      r'^----Android NewsGroup Reader----$',
+    ]);
     text = text.stripQuote;
     text = text.stripMultiEmptyLine;
     text = text.stripCustomPattern([]);

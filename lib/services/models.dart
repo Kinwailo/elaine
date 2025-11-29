@@ -1,4 +1,3 @@
-import '../app/string_utils.dart';
 import 'cloud_service.dart';
 
 class Group {
@@ -66,9 +65,9 @@ class Post {
     : id = (data['\$id'] ?? '') as String,
       thread = (data['thread'] ?? '') as String,
       sender = ((data['sender'] ?? '') as String).trim(),
-      text = (data['text'] as String?)?.stripAll,
+      text = (data['text'] as String?),
       html = (data['html'] ?? false) as bool,
-      textFile = data['textFile'] as String?,
+      textFile = data['textfile'] as String?,
       files = ((data['files'] ?? []) as List).map((e) => e as String).toList(),
       date = DateTime.parse(
         data['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
@@ -76,4 +75,17 @@ class Post {
       number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String,
       ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList();
+
+  Post.from(Post post)
+    : id = post.id,
+      thread = post.thread,
+      sender = post.sender,
+      text = post.text,
+      html = post.html,
+      textFile = post.textFile,
+      files = post.files,
+      date = post.date,
+      number = post.number,
+      msgid = post.msgid,
+      ref = post.ref;
 }

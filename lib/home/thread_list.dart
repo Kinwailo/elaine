@@ -63,7 +63,7 @@ class ThreadList extends HookWidget {
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.only(right: 12),
-                    sliver: SliverVariedExtentList.builder(
+                    sliver: SliverList.builder(
                       itemCount: countBackward + extraBackward,
                       itemBuilder: (_, index) {
                         return index >= countBackward
@@ -74,20 +74,12 @@ class ThreadList extends HookWidget {
                                 threads.nItems[index],
                               );
                       },
-                      itemExtentBuilder: (index, dimensions) {
-                        if (index > countBackward) return null;
-                        if (index == countBackward) return 4;
-                        final style = DefaultTextStyle.of(context).style;
-                        final thread = threads.nItems[index];
-                        final maxWidth = dimensions.crossAxisExtent - 32;
-                        return getitemExtent(thread, style, maxWidth);
-                      },
                     ),
                   ),
                   SliverPadding(
                     key: centerKey,
                     padding: EdgeInsets.only(right: 12),
-                    sliver: SliverVariedExtentList.builder(
+                    sliver: SliverList.builder(
                       itemCount: countForward + extraForward,
                       itemBuilder: (_, index) {
                         return index >= countForward
@@ -97,14 +89,6 @@ class ThreadList extends HookWidget {
                                 index,
                                 threads.pItems[index],
                               );
-                      },
-                      itemExtentBuilder: (index, dimensions) {
-                        if (index > countForward) return null;
-                        if (index == countForward) return 4;
-                        final style = DefaultTextStyle.of(context).style;
-                        final thread = threads.pItems[index];
-                        final maxWidth = dimensions.crossAxisExtent - 32;
-                        return getitemExtent(thread, style, maxWidth);
                       },
                     ),
                   ),
@@ -190,7 +174,7 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
         ? syncOverviewText.format([syncTotal])
         : syncTotal == 0
         ? syncOverviewFinishText
-        : syncOverviewTimeoutText;
+        : syncTimeoutText;
     useValueChanged(
       syncTotal,
       (_, _) => syncTotal > 0

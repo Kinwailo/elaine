@@ -1,10 +1,10 @@
-import 'package:collection/collection.dart';
-import 'package:elaine/app/const.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../app/const.dart';
 import '../app/utils.dart';
 import 'post_store.dart';
 import 'thread_store.dart';
@@ -17,18 +17,20 @@ class PostList extends HookWidget {
     const Key centerKey = ValueKey('centerPost');
     final threads = Modular.get<ThreadStore>();
     final posts = Modular.get<PostStore>();
-    final count = posts.posts.length;
+    final count = posts.pItems.length;
     final extra = posts.reachEnd ? 0 : 1;
     final controller = useScrollController();
-    useListenable(posts.posts);
-    useListenable(posts.allPostsListenable);
-    useListenable(posts.allQuotesListenable);
-    useListenable(posts.allQuotesTextListenable);
-    useListenable(posts.allImagesListenable);
+    useListenable(posts.pItems);
+    useListenable(posts.all);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: kToolbarHeight - 12,
-        title: Text(threads.selected.subject, overflow: TextOverflow.ellipsis),
+        title: SelectionArea(
+          child: Text(
+            threads.selected.subject,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         titleSpacing: 10,
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
@@ -48,77 +50,12 @@ class PostList extends HookWidget {
             SliverPadding(
               key: centerKey,
               padding: EdgeInsets.only(top: 2, right: 12, bottom: 2),
-              sliver: SliverVariedExtentList.builder(
+              sliver: SliverList.builder(
                 itemCount: count + extra,
                 itemBuilder: (_, index) {
                   return index >= count
                       ? MorePosts(key: UniqueKey())
-                      : PostTile(key: ValueKey(posts.posts[index]), index);
-                },
-                itemExtentBuilder: (index, dimensions) {
-                  if (index > count) return null;
-                  if (index == count) return 8;
-                  final style = DefaultTextStyle.of(context).style;
-                  final post = posts.posts[index];
-                  final body = posts.getPostText(post.msgid);
-                  final quote = posts.getQuoteNotifier(post.msgid).value;
-                  final images = posts.getFilesNotifier(post.msgid)?.value;
-                  final qMsgid = quote?.msgid ?? '';
-                  final qText = posts.getPostText(qMsgid);
-                  final qFiles = posts.getFilesNotifier(qMsgid)?.value;
-                  final maxWidth = dimensions.crossAxisExtent - 40;
-                  final qMaxWidth = maxWidth - 12.5;
-
-                  double height = 2 + 16;
-                  height += [
-                    estimateTextHeight(
-                      post.sender,
-                      style.merge(senderTextStyle),
-                      maxWidth: maxWidth,
-                    ),
-                    if (quote != null)
-                      [
-                        4,
-                        estimateTextHeight(
-                          '${quote.sender}：$qText',
-                          style.merge(senderTextStyle),
-                          maxLines: 3,
-                          maxWidth: qMaxWidth,
-                        ),
-                        if (qFiles?.isNotEmpty ?? false)
-                          estimateWrappedHeight(
-                            qFiles!
-                                .map((e) => e.value)
-                                .map(
-                                  (e) => e == null
-                                      ? 64
-                                      : e.size.width * 100 / e.size.height,
-                                ),
-                            100,
-                            qMaxWidth,
-                          ),
-                        4,
-                      ].sum,
-                    if (body.isNotEmpty)
-                      estimateTextHeight(
-                        body,
-                        style.merge(mainTextStyle),
-                        maxWidth: maxWidth,
-                      ),
-                    if (images?.isNotEmpty ?? false)
-                      images!
-                          .map((e) => e.value?.size)
-                          .map(
-                            (e) => e == null
-                                ? 64
-                                : [600, e.width, maxWidth].min /
-                                      e.width *
-                                      e.height,
-                          )
-                          .sum,
-                  ].separator(8).sum;
-                  height += 16 + 2;
-                  return height;
+                      : PostTile(key: ValueKey(posts.pItems[index]), index);
                 },
               ),
             ),
@@ -161,30 +98,30 @@ class PostTile extends HookWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final posts = Modular.get<PostStore>();
-    final post = posts.posts[index];
-    final text = posts.getPostText(post.msgid);
-    final keys = [post.msgid];
-    final quote = useMemoized(() => posts.setQuoteNotifier(post.msgid), keys);
-    final files = useMemoized(() => posts.setFilesNotifier(post.msgid), keys);
-    final qMsgid = quote.value?.msgid ?? '';
-    keys.add(qMsgid);
-    final qFiles = useMemoized(() => posts.setFilesNotifier(qMsgid), keys);
-    useListenable(files);
-    useListenable(posts.getPostNotifier(post.msgid));
+    final post = posts.pItems[index];
+    final quote = post.quote.value;
+    useEffect(() {
+      posts.loadQuote(post);
+      posts.loadImage(post);
+      return null;
+    }, [post.data]);
+    useListenable(post.changed);
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              PostTileHeadbar(index),
-              if (quote.value != null) PostTileQuote(qMsgid, quote, qFiles),
-              if (text.isNotEmpty) PostTileText(index),
-              if (files.isNotEmpty) PostTileImages(files),
-            ].separator(const SizedBox(height: 8)),
+          child: SelectionArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                PostTileHeadbar(index),
+                if (quote != null) PostTileQuote(quote),
+                if (post.getText().isNotEmpty) PostTileText(index),
+                if (post.images.isNotEmpty) PostTileImages(post),
+              ].separator(const SizedBox(height: 8)),
+            ),
           ),
         ),
       ),
@@ -200,27 +137,30 @@ class PostTileText extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final posts = Modular.get<PostStore>();
-    final post = posts.posts[index];
-    final listen = posts.getPostNotifier(post.msgid);
-    final text = posts.getPostText(post.msgid);
-    useListenable(listen);
-    return listen?.value.text == null
-        ? Text.rich(
-            TextSpan(
-              children: [
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: SizedBox.square(
-                    dimension: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-                WidgetSpan(child: SizedBox(width: 4)),
-                TextSpan(text: syncBodyText, style: mainTextStyle),
-              ],
+    final post = posts.pItems[index];
+    final sync = post.sync.value;
+    return Text.rich(
+      TextSpan(
+        children: [
+          if (sync == false) ...[
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: SizedBox.square(
+                dimension: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
-          )
-        : Text(text, style: mainTextStyle);
+            WidgetSpan(child: SizedBox(width: 4)),
+          ],
+          post.data.html
+              ? WidgetSpan(child: Html(data: post.getText()))
+              : TextSpan(
+                  text: post.getText(),
+                  style: sync == null ? errorTextStyle : mainTextStyle,
+                ),
+        ],
+      ),
+    );
   }
 }
 
@@ -232,7 +172,7 @@ class PostTileHeadbar extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final posts = Modular.get<PostStore>();
-    final post = posts.posts[index];
+    final post = posts.pItems[index].data;
     return Row(
       children: [
         Text(post.sender, style: senderTextStyle),
@@ -252,19 +192,14 @@ class PostTileHeadbar extends HookWidget {
 }
 
 class PostTileQuote extends HookWidget {
-  const PostTileQuote(this.msgid, this.quote, this.qFiles, {super.key});
+  const PostTileQuote(this.post, {super.key});
 
-  final String msgid;
-  final QuoteNotifier quote;
-  final ImageNotifierList qFiles;
+  final PostData post;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final posts = Modular.get<PostStore>();
-    final post = posts.getPostNotifier(msgid);
-    final text = posts.getPostText(msgid);
-    useListenable(post);
+    final sync = post.sync.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -291,10 +226,10 @@ class PostTileQuote extends HookWidget {
             children: [
               Text.rich(
                 TextSpan(
-                  text: '${quote.value!.sender}: ',
+                  text: '${post.data.sender}: ',
                   style: senderTextStyle,
                   children: [
-                    if (post?.value.text == null) ...[
+                    if (sync == false) ...[
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: SizedBox.square(
@@ -303,14 +238,16 @@ class PostTileQuote extends HookWidget {
                         ),
                       ),
                       WidgetSpan(child: SizedBox(width: 4)),
-                      TextSpan(text: syncBodyText, style: subTextStyle),
                     ],
-                    TextSpan(text: text, style: subTextStyle),
+                    TextSpan(
+                      text: post.getText(),
+                      style: sync == null ? errorTextStyle : subTextStyle,
+                    ),
                   ],
                 ),
                 maxLines: 3,
               ),
-              if (qFiles.isNotEmpty) PostTilePreviews(qFiles),
+              if (post.images.isNotEmpty) PostTilePreviews(post),
             ],
           ),
         ),
@@ -320,17 +257,16 @@ class PostTileQuote extends HookWidget {
 }
 
 class PostTileImages extends HookWidget {
-  const PostTileImages(this.images, {super.key});
+  const PostTileImages(this.post, {super.key});
 
-  final ImageNotifierList images;
+  final PostData post;
 
   @override
   Widget build(BuildContext context) {
-    useListenable(Listenable.merge(images.value));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...images.value
+        ...post.images
             .map((e) => e.value)
             .map(
               (e) => e == null
@@ -352,16 +288,15 @@ class PostTileImages extends HookWidget {
 }
 
 class PostTilePreviews extends HookWidget {
-  const PostTilePreviews(this.images, {super.key});
+  const PostTilePreviews(this.post, {super.key});
 
-  final ImageNotifierList images;
+  final PostData post;
 
   @override
   Widget build(BuildContext context) {
-    useListenable(Listenable.merge(images.value));
     return Wrap(
       children: [
-        ...images.value
+        ...post.images
             .map((e) => e.value)
             .map(
               (e) => e == null

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'models.dart';
 
 typedef RowData = Map<String, dynamic>;
-typedef SyncPostsData = Map<String, Future<Post>>;
+typedef SyncPostsData = Map<String, Future<Post?>>;
 
 abstract class CloudService {
   Future<List<Group>> getGroups({Iterable<String>? groups});

@@ -144,7 +144,7 @@ class AppWrite extends CloudService {
       body: '{"action":"get_bodies","data":$data}',
     );
 
-    final waiting = {for (var msgid in msgids) msgid: Completer<Post>()};
+    final waiting = {for (var msgid in msgids) msgid: Completer<Post?>()};
 
     final stream = subscription.stream.timeout(10.seconds);
     try {
@@ -153,12 +153,14 @@ class AppWrite extends CloudService {
         waiting[data['msgid']]?.complete(Post(data));
         if (waiting.values.every((e) => e.isCompleted)) break;
       }
+    } on TimeoutException catch (_) {
+      for (var e in waiting.values) {
+        if (!e.isCompleted) e.complete(null);
+      }
     } finally {
       await subscription.close();
     }
-    return {
-      for (var e in waiting.entries) e.key: e.value.future.timeout(10.seconds),
-    };
+    return {for (var e in waiting.entries) e.key: e.value.future};
   }
 
   @override
