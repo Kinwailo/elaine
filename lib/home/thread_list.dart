@@ -9,6 +9,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../app/const.dart';
 import '../app/utils.dart';
 import 'home_store.dart';
+import 'thread_store.dart';
 
 class ThreadList extends HookWidget {
   const ThreadList({super.key});
@@ -33,17 +34,17 @@ class ThreadList extends HookWidget {
   @override
   Widget build(BuildContext context) {
     const Key centerKey = ValueKey('centerThread');
-    final home = Modular.get<HomeStore>();
-    final countBackward = home.backwardThreads.length;
-    final extraBackward = home.reachStartThread ? 0 : 1;
-    final countForward = home.forwardThreads.length;
-    final extraForward = home.reachEndThread ? 0 : 1;
+    final threads = Modular.get<ThreadStore>();
+    final countBackward = threads.nItems.length;
+    final extraBackward = threads.reachStart ? 0 : 1;
+    final countForward = threads.pItems.length;
+    final extraForward = threads.reachEnd ? 0 : 1;
     estimateTextHeight('（）', mainTextStyle);
     final controller = useScrollController();
     final anim = useAnimationController(duration: 200.ms);
     useAnimation(anim);
-    useListenable(home.forwardThreads);
-    useListenable(home.backwardThreads);
+    useListenable(threads.nItems);
+    useListenable(threads.pItems);
     return Row(
       children: [
         SizedBox(
@@ -68,16 +69,16 @@ class ThreadList extends HookWidget {
                         return index >= countBackward
                             ? PrependMoreThreads(key: UniqueKey())
                             : ThreadTile(
-                                key: ValueKey(home.backwardThreads[index]),
+                                key: ValueKey(threads.nItems[index]),
                                 index,
-                                home.backwardThreads[index],
+                                threads.nItems[index],
                               );
                       },
                       itemExtentBuilder: (index, dimensions) {
                         if (index > countBackward) return null;
                         if (index == countBackward) return 4;
                         final style = DefaultTextStyle.of(context).style;
-                        final thread = home.backwardThreads[index];
+                        final thread = threads.nItems[index];
                         final maxWidth = dimensions.crossAxisExtent - 32;
                         return getitemExtent(thread, style, maxWidth);
                       },
@@ -92,16 +93,16 @@ class ThreadList extends HookWidget {
                         return index >= countForward
                             ? AppendMoreThreads(key: UniqueKey())
                             : ThreadTile(
-                                key: ValueKey(home.forwardThreads[index]),
+                                key: ValueKey(threads.pItems[index]),
                                 index,
-                                home.forwardThreads[index],
+                                threads.pItems[index],
                               );
                       },
                       itemExtentBuilder: (index, dimensions) {
                         if (index > countForward) return null;
                         if (index == countForward) return 4;
                         final style = DefaultTextStyle.of(context).style;
-                        final thread = home.forwardThreads[index];
+                        final thread = threads.pItems[index];
                         final maxWidth = dimensions.crossAxisExtent - 32;
                         return getitemExtent(thread, style, maxWidth);
                       },
@@ -238,14 +239,14 @@ class PrependMoreThreads extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
+    final threads = Modular.get<ThreadStore>();
     final loaded = useState(false);
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          home.prependMoreThreads();
+          threads.prependMore();
         }
       },
       child: LinearProgressIndicator(),
@@ -258,14 +259,14 @@ class AppendMoreThreads extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
+    final threads = Modular.get<ThreadStore>();
     final loaded = useState(false);
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          home.appendMoreThreads();
+          threads.appendMore();
         }
       },
       child: LinearProgressIndicator(),
@@ -282,8 +283,8 @@ class ThreadTile extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final home = Modular.get<HomeStore>();
-    final number = home.getThreadTile(home.selectedThread.number);
+    final threads = Modular.get<ThreadStore>();
+    final number = threads.getTile(threads.selected.number);
     final selected = thread.number == number;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -293,7 +294,7 @@ class ThreadTile extends HookWidget {
     final date = thread.date;
     // final hot = (thread.hot * 100.0 / hotRef).round();
     final link = '/${thread.group}/${thread.number}';
-    useListenable(home.threadTile);
+    useListenable(threads.tile);
     return Link(
       uri: Uri.parse(link),
       builder: (_, follow) => InkWell(
@@ -302,7 +303,7 @@ class ThreadTile extends HookWidget {
             link,
             ModalRoute.withName('/${thread.group}/'),
           );
-          home.updateThreadTile(thread.number);
+          threads.updateTile(thread.number);
         },
         child: Container(
           color: color,

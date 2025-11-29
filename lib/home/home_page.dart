@@ -5,14 +5,18 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import '../services/appwrite.dart';
 import '../services/cloud_service.dart';
 import 'home_store.dart';
+import 'post_store.dart';
 import 'thread_list.dart';
 import 'post_list.dart';
+import 'thread_store.dart';
 
 class HomeModule extends Module {
   @override
   void binds(i) {
     i.addSingleton<CloudService>(AppWrite.new);
     i.addSingleton(HomeStore.new);
+    i.addSingleton(ThreadStore.new);
+    i.addSingleton(PostStore.new);
   }
 
   @override
@@ -44,11 +48,11 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread',
               child: (_) {
-                final home = Modular.get<HomeStore>();
+                final threads = Modular.get<ThreadStore>();
                 final group = r.args.params['group'];
                 final number = int.tryParse(r.args.params['thread']);
                 if (group != null && number != null) {
-                  home.selectThread(group, number);
+                  threads.select(group, number);
                 }
                 return PostList();
               },

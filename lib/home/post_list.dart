@@ -6,7 +6,8 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/utils.dart';
-import 'home_store.dart';
+import 'post_store.dart';
+import 'thread_store.dart';
 
 class PostList extends HookWidget {
   const PostList({super.key});
@@ -14,22 +15,20 @@ class PostList extends HookWidget {
   @override
   Widget build(BuildContext context) {
     const Key centerKey = ValueKey('centerPost');
-    final home = Modular.get<HomeStore>();
-    final count = home.posts.length;
-    final extra = home.reachEndPost ? 0 : 1;
+    final threads = Modular.get<ThreadStore>();
+    final posts = Modular.get<PostStore>();
+    final count = posts.posts.length;
+    final extra = posts.reachEnd ? 0 : 1;
     final controller = useScrollController();
-    useListenable(home.posts);
-    useListenable(home.allPostsListenable);
-    useListenable(home.allQuotesListenable);
-    useListenable(home.allQuotesTextListenable);
-    useListenable(home.allImagesListenable);
+    useListenable(posts.posts);
+    useListenable(posts.allPostsListenable);
+    useListenable(posts.allQuotesListenable);
+    useListenable(posts.allQuotesTextListenable);
+    useListenable(posts.allImagesListenable);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: kToolbarHeight - 12,
-        title: Text(
-          home.selectedThread.subject,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(threads.selected.subject, overflow: TextOverflow.ellipsis),
         titleSpacing: 10,
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
@@ -54,19 +53,19 @@ class PostList extends HookWidget {
                 itemBuilder: (_, index) {
                   return index >= count
                       ? MorePosts(key: UniqueKey())
-                      : PostTile(key: ValueKey(home.posts[index]), index);
+                      : PostTile(key: ValueKey(posts.posts[index]), index);
                 },
                 itemExtentBuilder: (index, dimensions) {
                   if (index > count) return null;
                   if (index == count) return 8;
                   final style = DefaultTextStyle.of(context).style;
-                  final post = home.posts[index];
-                  final body = home.getPostText(post.msgid);
-                  final quote = home.getQuoteNotifier(post.msgid).value;
-                  final images = home.getFilesNotifier(post.msgid)?.value;
+                  final post = posts.posts[index];
+                  final body = posts.getPostText(post.msgid);
+                  final quote = posts.getQuoteNotifier(post.msgid).value;
+                  final images = posts.getFilesNotifier(post.msgid)?.value;
                   final qMsgid = quote?.msgid ?? '';
-                  final qText = home.getPostText(qMsgid);
-                  final qFiles = home.getFilesNotifier(qMsgid)?.value;
+                  final qText = posts.getPostText(qMsgid);
+                  final qFiles = posts.getFilesNotifier(qMsgid)?.value;
                   final maxWidth = dimensions.crossAxisExtent - 40;
                   final qMaxWidth = maxWidth - 12.5;
 
@@ -135,14 +134,14 @@ class MorePosts extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
+    final posts = Modular.get<PostStore>();
     final loaded = useState(false);
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          home.loadMorePosts();
+          posts.loadMore();
         }
       },
       child: Padding(
@@ -161,17 +160,17 @@ class PostTile extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final home = Modular.get<HomeStore>();
-    final post = home.posts[index];
-    final text = home.getPostText(post.msgid);
+    final posts = Modular.get<PostStore>();
+    final post = posts.posts[index];
+    final text = posts.getPostText(post.msgid);
     final keys = [post.msgid];
-    final quote = useMemoized(() => home.setQuoteNotifier(post.msgid), keys);
-    final files = useMemoized(() => home.setFilesNotifier(post.msgid), keys);
+    final quote = useMemoized(() => posts.setQuoteNotifier(post.msgid), keys);
+    final files = useMemoized(() => posts.setFilesNotifier(post.msgid), keys);
     final qMsgid = quote.value?.msgid ?? '';
     keys.add(qMsgid);
-    final qFiles = useMemoized(() => home.setFilesNotifier(qMsgid), keys);
+    final qFiles = useMemoized(() => posts.setFilesNotifier(qMsgid), keys);
     useListenable(files);
-    useListenable(home.getPostNotifier(post.msgid));
+    useListenable(posts.getPostNotifier(post.msgid));
     return Padding(
       padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
       child: Container(
@@ -200,10 +199,10 @@ class PostTileText extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
-    final post = home.posts[index];
-    final listen = home.getPostNotifier(post.msgid);
-    final text = home.getPostText(post.msgid);
+    final posts = Modular.get<PostStore>();
+    final post = posts.posts[index];
+    final listen = posts.getPostNotifier(post.msgid);
+    final text = posts.getPostText(post.msgid);
     useListenable(listen);
     return listen?.value.text == null
         ? Text.rich(
@@ -232,8 +231,8 @@ class PostTileHeadbar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
-    final post = home.posts[index];
+    final posts = Modular.get<PostStore>();
+    final post = posts.posts[index];
     return Row(
       children: [
         Text(post.sender, style: senderTextStyle),
@@ -262,9 +261,9 @@ class PostTileQuote extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final home = Modular.get<HomeStore>();
-    final post = home.getPostNotifier(msgid);
-    final text = home.getPostText(msgid);
+    final posts = Modular.get<PostStore>();
+    final post = posts.getPostNotifier(msgid);
+    final text = posts.getPostText(msgid);
     useListenable(post);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
