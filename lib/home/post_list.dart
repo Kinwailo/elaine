@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
@@ -26,7 +27,7 @@ class PostList extends HookWidget {
         toolbarHeight: kToolbarHeight - 12,
         title: SelectionArea(
           child: Text(
-            threads.selected.subject,
+            threads.selected?.data.subject ?? '',
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -49,9 +50,12 @@ class PostList extends HookWidget {
             SliverPadding(
               key: centerKey,
               padding: EdgeInsets.only(top: 2, right: 12, bottom: 2),
-              sliver: SliverList.builder(
+              sliver: SuperSliverList.builder(
                 itemCount: count + extra,
                 itemBuilder: (_, index) {
+                  if (index < count && posts.pItems[index].sync.value == true) {
+                    Future(() async => threads.selected?.markRead(index + 1));
+                  }
                   return index >= count
                       ? MorePosts(key: UniqueKey())
                       : PostTile(key: ValueKey(posts.pItems[index]), index);

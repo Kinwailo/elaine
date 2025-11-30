@@ -1,10 +1,10 @@
-import 'package:elaine/services/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
@@ -13,23 +13,6 @@ import 'thread_store.dart';
 
 class ThreadList extends HookWidget {
   const ThreadList({super.key});
-
-  double getitemExtent(Thread thread, TextStyle style, double maxWidth) {
-    double height = 16;
-    height += estimateTextHeight(
-      thread.sender,
-      style.merge(senderTextStyle),
-      maxWidth: maxWidth,
-    );
-    height += 4;
-    height += estimateTextHeight(
-      thread.subject,
-      style.merge(mainTextStyle),
-      maxWidth: maxWidth,
-    );
-    height += 16;
-    return height;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +46,7 @@ class ThreadList extends HookWidget {
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.only(right: 12),
-                    sliver: SliverList.builder(
+                    sliver: SuperSliverList.builder(
                       itemCount: countBackward + extraBackward,
                       itemBuilder: (_, index) {
                         return index >= countBackward
@@ -79,7 +62,7 @@ class ThreadList extends HookWidget {
                   SliverPadding(
                     key: centerKey,
                     padding: EdgeInsets.only(right: 12),
-                    sliver: SliverList.builder(
+                    sliver: SuperSliverList.builder(
                       itemCount: countForward + extraForward,
                       itemBuilder: (_, index) {
                         return index >= countForward
@@ -262,43 +245,44 @@ class ThreadTile extends HookWidget {
   const ThreadTile(this.index, this.thread, {super.key});
 
   final int index;
-  final Thread thread;
+  final ThreadData thread;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final threads = Modular.get<ThreadStore>();
-    final number = threads.getTile(threads.selected.number);
-    final selected = thread.number == number;
+    final number = threads.getTile();
+    final selected = thread.data.number == number;
     final color = selected
         ? colorScheme.primaryContainer.withValues(alpha: 0.5)
         : index % 2 == 0
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
-    final date = thread.date;
+    final date = thread.data.date;
     // final hot = (thread.hot * 100.0 / hotRef).round();
-    final link = '/${thread.group}/${thread.number}';
+    final link = '/${thread.data.group}/${thread.data.number}';
     useListenable(threads.tile);
+    useListenable(thread.read);
     return Link(
       uri: Uri.parse(link),
       builder: (_, follow) => InkWell(
         onTap: () async {
           Modular.to.pushNamedAndRemoveUntil(
             link,
-            ModalRoute.withName('/${thread.group}/'),
+            ModalRoute.withName('/${thread.data.group}/'),
           );
-          threads.updateTile(thread.number);
+          threads.updateTile(thread.data.number);
         },
         child: Container(
           color: color,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(thread.sender, style: senderTextStyle),
+                    Text(thread.data.sender, style: senderTextStyle),
                     const SizedBox(width: 8),
                     TooltipVisibility(
                       visible: date.relative != date.format,
@@ -310,11 +294,16 @@ class ThreadTile extends HookWidget {
                     Spacer(),
                     // if (hot > 0) Text('🔥$hot', style: subTextStyle),
                     const SizedBox(width: 16),
-                    Text('💬${thread.total}', style: subTextStyle),
+                    Text('💬${thread.data.total}', style: subTextStyle),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(thread.subject, style: mainTextStyle),
+                Badge.count(
+                  offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
+                  isLabelVisible: false,
+                  count: thread.read.value,
+                  child: Text(thread.data.subject, style: mainTextStyle),
+                ),
               ],
             ),
           ),

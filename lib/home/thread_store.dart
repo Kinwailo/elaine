@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -7,19 +8,35 @@ import '../services/models.dart';
 import 'home_store.dart';
 import 'post_store.dart';
 
+class ThreadData {
+  ValueListenable<int> get read => _read;
+  final _read = ValueNotifier<int>(0);
+
+  Thread get data => _data;
+  final Thread _data;
+
+  ThreadData(Thread thread) : _data = thread;
+
+  void markRead(int read) {
+    if (read > _read.value) _read.value = read;
+  }
+}
+
 class ThreadStore {
-  ListListenable<Thread> get nItems => _nItems;
-  final _nItems = ListNotifier<Thread>([]);
-  ListListenable<Thread> get pItems => _pItems;
-  final _pItems = ListNotifier<Thread>([]);
+  ListListenable<ThreadData> get nItems => _nItems;
+  final _nItems = ListNotifier<ThreadData>([]);
+  ListListenable<ThreadData> get pItems => _pItems;
+  final _pItems = ListNotifier<ThreadData>([]);
 
   bool get reachStart => _reachStart;
   var _reachStart = true;
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  Thread get selected => _select.value;
-  final _select = ValueNotifier<Thread>(Thread({}));
+  ThreadData? get selected => _select.value;
+  final _select = ValueNotifier<ThreadData?>(null);
+
+  final _map = <String, ThreadData>{};
 
   ValueListenable<int?> get tile => _tile;
   final _tile = ValueNotifier<int?>(null);
@@ -30,9 +47,10 @@ class ThreadStore {
   String? _cursorEnd;
 
   Future<void> select(String group, int number) async {
-    if (selected.number == number) return;
+    if (selected?.data.number == number) return;
     var thread = nItems.value
         .followedBy(pItems.value)
+        .map((e) => e.data)
         .where((e) => e.group == group && e.number == number)
         .firstOrNull;
     if (thread == null) {
@@ -40,10 +58,11 @@ class ThreadStore {
       thread = await cloud.getThread(group, number);
     }
     if (thread == null) return;
-    _select.value = thread;
+    final data = _map.putIfAbsent(thread.msgid, () => ThreadData(thread!));
+    _select.value = data;
 
     if (_tile.value == null) {
-      _pItems.append([thread]);
+      _pItems.append([data]);
       _cursorStart = thread.id;
       _reachStart = false;
       _cursorEnd = thread.id;
@@ -54,18 +73,15 @@ class ThreadStore {
     posts.refresh();
   }
 
-  int? getTile(int? number) {
+  int? getTile() {
     if (_tile.value == null) {
-      _tile.value = number;
+      _tile.value = selected?._data.number;
     }
     return _tile.value;
   }
 
-  int? updateTile(int? number) {
-    if (number != null) {
-      _tile.value = number;
-    }
-    return _tile.value;
+  void updateTile(int number) {
+    _tile.value = number;
   }
 
   Future<void> refresh() async {
@@ -96,7 +112,11 @@ class ThreadStore {
     } else {
       _cursorStart = items.first.id;
     }
-    _nItems.append(items.reversed);
+
+    final threads = items.map((e) => ThreadData(e)).toList();
+    final add = threads.whereNot((e) => _map.containsKey(e.data.msgid));
+    _map.addAll({for (var thread in add) thread.data.msgid: thread});
+    _nItems.append(threads.reversed);
   }
 
   Future<void> appendMore() async {
@@ -116,6 +136,10 @@ class ThreadStore {
     } else {
       _cursorEnd = items.last.id;
     }
-    _pItems.append(items);
+
+    final threads = items.map((e) => ThreadData(e)).toList();
+    final add = threads.whereNot((e) => _map.containsKey(e.data.msgid));
+    _map.addAll({for (var thread in add) thread.data.msgid: thread});
+    _pItems.append(threads);
   }
 }

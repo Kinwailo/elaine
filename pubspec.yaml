@@ -22,6 +22,9 @@ dependencies:
   collection: ^1.19.1
   flutter_animate: ^4.5.2
   flutter_html: ^3.0.0
+  super_sliver_list: ^0.4.1
+  universal_html: ^2.3.0
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -101,11 +102,11 @@ class PostStore {
   }
 
   Future<void> loadMore() async {
-    if (_reachEnd) return;
     final threads = Modular.get<ThreadStore>();
+    if (_reachEnd || threads.selected == null) return;
     final cloud = Modular.get<CloudService>();
     var items = await cloud.getPosts(
-      threads.selected.msgid,
+      threads.selected!.data.msgid,
       _itemsPreFetch,
       _cursorEnd,
     );
@@ -116,7 +117,8 @@ class PostStore {
       _cursorEnd = items.last.id;
     }
     final posts = items.map((e) => PostData(e)).toList();
-    _map.addAll({for (var post in posts) post.data.msgid: post});
+    final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
+    _map.addAll({for (var post in add) post.data.msgid: post});
     _pItems.append(posts);
 
     for (var post in posts) {
