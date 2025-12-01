@@ -259,6 +259,7 @@ class ThreadTile extends HookWidget {
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.data.date;
+    final unread = thread.data.total - thread.read.value;
     // final hot = (thread.hot * 100.0 / hotRef).round();
     final link = '/${thread.data.group}/${thread.data.number}';
     useListenable(threads.tile);
@@ -300,8 +301,8 @@ class ThreadTile extends HookWidget {
                 const SizedBox(height: 4),
                 Badge.count(
                   offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
-                  isLabelVisible: false,
-                  count: thread.read.value,
+                  isLabelVisible: unread > 0 && unread != thread.data.total,
+                  count: unread,
                   child: Text(thread.data.subject, style: mainTextStyle),
                 ),
               ],

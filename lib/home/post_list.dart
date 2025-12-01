@@ -53,9 +53,6 @@ class PostList extends HookWidget {
               sliver: SuperSliverList.builder(
                 itemCount: count + extra,
                 itemBuilder: (_, index) {
-                  if (index < count && posts.pItems[index].sync.value == true) {
-                    Future(() async => threads.selected?.markRead(index + 1));
-                  }
                   return index >= count
                       ? MorePosts(key: UniqueKey())
                       : PostTile(key: ValueKey(posts.pItems[index]), index);
@@ -107,21 +104,30 @@ class PostTile extends HookWidget {
     posts.loadImage(post);
     useListenable(post.changed);
     useListenable(post.quote.value?.changed);
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
-      child: Container(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SelectionArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                PostTileHeadbar(index),
-                if (quote != null) PostTileQuote(quote),
-                if (post.getText().isNotEmpty) PostTileText(index),
-                if (post.images.isNotEmpty) PostTileImages(post),
-              ].separator(const SizedBox(height: 8)),
+    return VisibilityDetector(
+      key: key!,
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0.1 && post.sync.value == true) {
+          final threads = Modular.get<ThreadStore>();
+          threads.selected?.markRead(index + 1);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
+        child: Container(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SelectionArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  PostTileHeadbar(index),
+                  if (quote != null) PostTileQuote(quote),
+                  if (post.getText().isNotEmpty) PostTileText(index),
+                  if (post.images.isNotEmpty) PostTileImages(post),
+                ].separator(const SizedBox(height: 8)),
+              ),
             ),
           ),
         ),
@@ -139,11 +145,10 @@ class PostTileText extends HookWidget {
   Widget build(BuildContext context) {
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
-    final sync = post.sync.value;
     return Text.rich(
       TextSpan(
         children: [
-          if (sync == false) ...[
+          if (!post.sync.value) ...[
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
               child: SizedBox.square(
@@ -157,7 +162,7 @@ class PostTileText extends HookWidget {
               ? WidgetSpan(child: Html(data: post.getText()))
               : TextSpan(
                   text: post.getText(),
-                  style: sync == null ? errorTextStyle : mainTextStyle,
+                  style: post.error.value ? errorTextStyle : mainTextStyle,
                 ),
         ],
       ),
@@ -200,7 +205,6 @@ class PostTileQuote extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final sync = post.sync.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,7 +234,7 @@ class PostTileQuote extends HookWidget {
                   text: '${post.data.sender}: ',
                   style: senderTextStyle,
                   children: [
-                    if (sync == false) ...[
+                    if (!post.sync.value) ...[
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: SizedBox.square(
@@ -242,7 +246,7 @@ class PostTileQuote extends HookWidget {
                     ],
                     TextSpan(
                       text: post.getText(),
-                      style: sync == null ? errorTextStyle : subTextStyle,
+                      style: post.error.value ? errorTextStyle : subTextStyle,
                     ),
                   ],
                 ),

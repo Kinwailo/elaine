@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../app/const.dart';
@@ -13,7 +15,9 @@ import '../services/models.dart';
 import 'thread_store.dart';
 
 class PostData {
-  ValueListenable<bool?> get sync => _sync;
+  // ValueListenable<bool?> get sync => _sync;
+  SelectedListenable<bool, bool?> get sync => _sync.select((e) => e == true);
+  SelectedListenable<bool, bool?> get error => _sync.select((e) => e == null);
   final _sync = ValueNotifier<bool?>(false);
 
   ValueListenable<PostData?> get quote => _quote;
@@ -26,6 +30,8 @@ class PostData {
   Post _data;
 
   String? _text;
+  bool _visible = false;
+  Timer? _visibleTimer;
 
   Listenable get changed => Listenable.merge([sync, quote, ...images]);
 
@@ -40,6 +46,7 @@ class PostData {
     _data = post;
     _images.addAll(post.files.map((e) => ValueNotifier<ImageData?>(null)));
     _sync.value = post.textFile == null;
+    markRead();
   }
 
   void syncError() {
@@ -49,6 +56,7 @@ class PostData {
   void setText(String text) {
     _text = text;
     _sync.value = true;
+    markRead();
   }
 
   void setQuote(PostData post) {
@@ -61,11 +69,23 @@ class PostData {
 
   String getText() {
     final text = (_text ?? data.text ?? '').stripAll;
-    return switch (sync.value) {
+    return switch (_sync.value) {
       null => syncTimeoutText,
       false => syncBodyText,
       true => (text.isEmpty && data.files.isEmpty) ? emptyText : text,
     };
+  }
+
+  Future<void> setVisible(bool v) async {
+    _visibleTimer?.cancel();
+    _visibleTimer = Timer(1.seconds, () {
+      _visible = v;
+      markRead();
+    });
+  }
+
+  void markRead() {
+    if (!_visible || !sync.value) return;
   }
 }
 
@@ -174,7 +194,7 @@ class PostStore {
   }
 
   void loadImage(PostData post) {
-    if (post.sync.value != true) return;
+    if (!post.sync.value) return;
     if (post.images.every((e) => e.value != null)) return;
     for (var (i, _) in post.data.files.indexed) {
       _loadImageData(post, i);

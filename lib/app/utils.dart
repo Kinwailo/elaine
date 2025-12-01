@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -79,6 +79,38 @@ double estimateWrappedHeight(
         ? Size(v.width + e, v.height)
         : Size(e, v.height + itemHeight);
   }).height;
+}
+
+extension ValueListenableExtension<E> on ValueListenable<E> {
+  SelectedListenable<T, E> select<T>(T Function(E) selector) =>
+      SelectedListenable<T, E>(this, selector);
+}
+
+class SelectedListenable<T, E> extends ValueListenable<T> with ChangeNotifier {
+  SelectedListenable(this.listenable, this.selector)
+    : _value = selector(listenable.value) {
+    listenable.addListener(listener);
+  }
+
+  final ValueListenable<E> listenable;
+  final T Function(E) selector;
+  T _value;
+
+  void listener() {
+    final v = selector(listenable.value);
+    if (_value == v) return;
+    _value = v;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    removeListener(listener);
+    super.dispose();
+  }
+
+  @override
+  T get value => _value;
 }
 
 abstract class ListListenable<T> extends Listenable {
