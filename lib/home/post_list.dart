@@ -104,12 +104,17 @@ class PostTile extends HookWidget {
     posts.loadImage(post);
     useListenable(post.changed);
     useListenable(post.quote.value?.changed);
+    useValueChanged(post.read.value, (_, _) async {
+      final threads = Modular.get<ThreadStore>();
+      return Future(() => threads.selected?.markRead(index + 1));
+    });
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
-        if (info.visibleFraction > 0.1 && post.sync.value == true) {
-          final threads = Modular.get<ThreadStore>();
-          threads.selected?.markRead(index + 1);
+        if (info.visibleFraction > 56.0 / info.size.height) {
+          post.setVisible(true);
+        } else if (info.visibleFraction == 0.0) {
+          post.setVisible(false);
         }
       },
       child: Padding(

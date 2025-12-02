@@ -259,6 +259,7 @@ class ThreadTile extends HookWidget {
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.data.date;
+    final new_ = 0;
     final unread = thread.data.total - thread.read.value;
     // final hot = (thread.hot * 100.0 / hotRef).round();
     final link = '/${thread.data.group}/${thread.data.number}';
@@ -276,36 +277,46 @@ class ThreadTile extends HookWidget {
         },
         child: Container(
           color: color,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(thread.data.sender, style: senderTextStyle),
-                    const SizedBox(width: 8),
-                    TooltipVisibility(
-                      visible: date.relative != date.format,
-                      child: Tooltip(
-                        message: date.format,
-                        child: Text(date.relative, style: subTextStyle),
+          child: Opacity(
+            opacity: unread == 0 ? 0.5 : 1.0,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(thread.data.sender, style: senderTextStyle),
+                      const SizedBox(width: 8),
+                      TooltipVisibility(
+                        visible: date.relative != date.format,
+                        child: Tooltip(
+                          message: date.format,
+                          child: Text(date.relative, style: subTextStyle),
+                        ),
                       ),
+                      Spacer(),
+                      // if (hot > 0) Text('🔥$hot', style: subTextStyle),
+                      const SizedBox(width: 16),
+                      Text('💬${thread.data.total}', style: subTextStyle),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Badge(
+                    backgroundColor: unreadColor,
+                    offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
+                    isLabelVisible: unread > 0 && unread != thread.data.total,
+                    label: Row(
+                      children: [
+                        if (new_ != unread && new_ > 0)
+                          Badge(backgroundColor: newColor),
+                        Text('$unread'),
+                      ],
                     ),
-                    Spacer(),
-                    // if (hot > 0) Text('🔥$hot', style: subTextStyle),
-                    const SizedBox(width: 16),
-                    Text('💬${thread.data.total}', style: subTextStyle),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Badge.count(
-                  offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
-                  isLabelVisible: unread > 0 && unread != thread.data.total,
-                  count: unread,
-                  child: Text(thread.data.subject, style: mainTextStyle),
-                ),
-              ],
+                    child: Text(thread.data.subject, style: mainTextStyle),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

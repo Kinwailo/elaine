@@ -11,3 +11,6 @@ const subTextStyle = TextStyle(color: Colors.grey, fontSize: 14);
 const senderTextStyle = TextStyle(color: Colors.blueAccent, fontSize: 14);
 const pinnedTextStyle = TextStyle(fontSize: 16);
 const errorTextStyle = TextStyle(color: Colors.redAccent, fontSize: 16);
+
+const unreadColor = Colors.blueAccent;
+const newColor = Colors.redAccent;

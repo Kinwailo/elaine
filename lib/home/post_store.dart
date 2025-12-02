@@ -15,7 +15,6 @@ import '../services/models.dart';
 import 'thread_store.dart';
 
 class PostData {
-  // ValueListenable<bool?> get sync => _sync;
   SelectedListenable<bool, bool?> get sync => _sync.select((e) => e == true);
   SelectedListenable<bool, bool?> get error => _sync.select((e) => e == null);
   final _sync = ValueNotifier<bool?>(false);
@@ -26,6 +25,9 @@ class PostData {
   List<ValueNotifier<ImageData?>> get images => List.unmodifiable(_images);
   final _images = <ValueNotifier<ImageData?>>[];
 
+  ValueListenable<bool> get read => _read;
+  final _read = ValueNotifier<bool>(false);
+
   Post get data => _data;
   Post _data;
 
@@ -33,7 +35,7 @@ class PostData {
   bool _visible = false;
   Timer? _visibleTimer;
 
-  Listenable get changed => Listenable.merge([sync, quote, ...images]);
+  Listenable get changed => Listenable.merge([sync, read, quote, ...images]);
 
   PostData(Post post) : _data = post {
     if (post.text != null) {
@@ -46,7 +48,7 @@ class PostData {
     _data = post;
     _images.addAll(post.files.map((e) => ValueNotifier<ImageData?>(null)));
     _sync.value = post.textFile == null;
-    markRead();
+    setVisible(_visible);
   }
 
   void syncError() {
@@ -56,7 +58,7 @@ class PostData {
   void setText(String text) {
     _text = text;
     _sync.value = true;
-    markRead();
+    setVisible(_visible);
   }
 
   void setQuote(PostData post) {
@@ -80,12 +82,8 @@ class PostData {
     _visibleTimer?.cancel();
     _visibleTimer = Timer(1.seconds, () {
       _visible = v;
-      markRead();
+      if (_visible && sync.value) _read.value = true;
     });
-  }
-
-  void markRead() {
-    if (!_visible || !sync.value) return;
   }
 }
 
@@ -103,8 +101,8 @@ class PostStore {
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  Post get selected => _select.value;
-  final _select = ValueNotifier<Post>(Post({}));
+  int get selected => _select.value;
+  final _select = ValueNotifier<int>(0);
 
   final _map = <String, PostData>{};
 
