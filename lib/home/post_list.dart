@@ -102,8 +102,8 @@ class PostTile extends HookWidget {
     final quote = post.quote.value;
     posts.loadQuote(post);
     posts.loadImage(post);
-    useListenable(post.changed);
-    useListenable(post.quote.value?.changed);
+    useListenable(post);
+    useListenable(post.quote.value);
     useValueChanged(post.read.value, (_, _) async {
       final threads = Modular.get<ThreadStore>();
       return Future(() => threads.selected?.markRead(index + 1));
@@ -153,7 +153,7 @@ class PostTileText extends HookWidget {
     return Text.rich(
       TextSpan(
         children: [
-          if (!post.sync.value) ...[
+          if (post.syncing.value) ...[
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
               child: SizedBox.square(
@@ -183,20 +183,28 @@ class PostTileHeadbar extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final posts = Modular.get<PostStore>();
-    final post = posts.pItems[index].data;
+    final post = posts.pItems[index];
     return Row(
       children: [
-        Text(post.sender, style: senderTextStyle),
-        const SizedBox(width: 8),
-        TooltipVisibility(
-          visible: post.date.relative != post.date.format,
-          child: Tooltip(
-            message: post.date.format,
-            child: Text(post.date.relative, style: subTextStyle),
+        ...<Widget>[
+          Text(post.data.sender, style: senderTextStyle),
+          TooltipVisibility(
+            visible: post.data.date.relative != post.data.date.format,
+            child: Tooltip(
+              message: post.data.date.format,
+              child: Text(post.data.date.relative, style: subTextStyle),
+            ),
           ),
-        ),
-        Spacer(),
-        Text('#${index + 1}', style: subTextStyle),
+          Spacer(),
+          InkWell(
+            onTap: () => post.setOriginal(!post.original.value),
+            child: Tooltip(
+              message: '原文',
+              child: Text('📃', style: subTextStyle),
+            ),
+          ),
+          Text('#${index + 1}', style: subTextStyle),
+        ].separator(const SizedBox(width: 8)),
       ],
     );
   }
@@ -239,7 +247,7 @@ class PostTileQuote extends HookWidget {
                   text: '${post.data.sender}: ',
                   style: senderTextStyle,
                   children: [
-                    if (!post.sync.value) ...[
+                    if (post.syncing.value) ...[
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
                         child: SizedBox.square(

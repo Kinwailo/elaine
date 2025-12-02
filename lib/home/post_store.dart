@@ -14,16 +14,21 @@ import '../services/cloud_service.dart';
 import '../services/models.dart';
 import 'thread_store.dart';
 
-class PostData {
-  SelectedListenable<bool, bool?> get sync => _sync.select((e) => e == true);
+class PostData extends ChangeNotifier {
+  SelectedListenable<bool, bool?> get synced => _sync.select((e) => e == true);
+  SelectedListenable<bool, bool?> get syncing =>
+      _sync.select((e) => e == false);
   SelectedListenable<bool, bool?> get error => _sync.select((e) => e == null);
   final _sync = ValueNotifier<bool?>(false);
 
   ValueListenable<PostData?> get quote => _quote;
   final _quote = ValueNotifier<PostData?>(null);
 
-  List<ValueNotifier<ImageData?>> get images => List.unmodifiable(_images);
-  final _images = <ValueNotifier<ImageData?>>[];
+  Iterable<ValueNotifier<ImageData?>> get images => _images.values;
+  Map<String, ValueNotifier<ImageData?>> _images = {};
+
+  ValueListenable<bool> get original => _original;
+  final _original = ValueNotifier<bool>(false);
 
   ValueListenable<bool> get read => _read;
   final _read = ValueNotifier<bool>(false);
@@ -35,46 +40,54 @@ class PostData {
   bool _visible = false;
   Timer? _visibleTimer;
 
-  Listenable get changed => Listenable.merge([sync, read, quote, ...images]);
-
   PostData(Post post) : _data = post {
-    if (post.text != null) {
-      _sync.value = post.textFile == null;
-      _images.addAll(post.files.map((e) => ValueNotifier<ImageData?>(null)));
-    }
+    if (post.text == null) return;
+    _sync.value = post.textFile == null;
+    _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
   }
 
   void syncFrom(Post post) {
     _data = post;
-    _images.addAll(post.files.map((e) => ValueNotifier<ImageData?>(null)));
+    _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
     _sync.value = post.textFile == null;
     setVisible(_visible);
+    notifyListeners();
   }
 
   void syncError() {
     _sync.value = null;
+    notifyListeners();
   }
 
   void setText(String text) {
     _text = text;
     _sync.value = true;
     setVisible(_visible);
+    notifyListeners();
   }
 
   void setQuote(PostData post) {
     _quote.value = post;
+    notifyListeners();
   }
 
-  void setImage(int index, ImageData data) {
-    _images[index].value = data;
+  void setImage(String id, ImageData data) {
+    _images[id]?.value = data;
+    notifyListeners();
+  }
+
+  void setOriginal(bool value) {
+    _original.value = value;
+    notifyListeners();
   }
 
   String getText() {
-    final text = (_text ?? data.text ?? '').stripAll;
+    final text = (_text ?? data.text ?? '');
+    final strip = original.value ? text : text.stripAll;
     return switch (_sync.value) {
       null => syncTimeoutText,
       false => syncBodyText,
-      true => (text.isEmpty && data.files.isEmpty) ? emptyText : text,
+      true => (strip.isEmpty && data.files.isEmpty) ? emptyText : strip,
     };
   }
 
@@ -82,7 +95,10 @@ class PostData {
     _visibleTimer?.cancel();
     _visibleTimer = Timer(1.seconds, () {
       _visible = v;
-      if (_visible && sync.value) _read.value = true;
+      if (_visible && synced.value) {
+        _read.value = true;
+        notifyListeners();
+      }
     });
   }
 }
@@ -110,7 +126,7 @@ class PostStore {
 
   String? _cursorEnd;
 
-  Listenable get all => Listenable.merge(_map.values.map((e) => e.changed));
+  Listenable get all => Listenable.merge(_map.values);
 
   void refresh() {
     _cursorEnd = null;
@@ -191,14 +207,6 @@ class PostStore {
     post.setQuote(_map[qMsgid]!);
   }
 
-  void loadImage(PostData post) {
-    if (!post.sync.value) return;
-    if (post.images.every((e) => e.value != null)) return;
-    for (var (i, _) in post.data.files.indexed) {
-      _loadImageData(post, i);
-    }
-  }
-
   Future<void> _loadTextFile(PostData post) async {
     if (post.data.textFile == null) return;
     final cloud = Modular.get<CloudService>();
@@ -206,10 +214,19 @@ class PostStore {
     post.setText(utf8.decode(data));
   }
 
-  Future<void> _loadImageData(PostData post, int index) async {
+  Future<void> loadImage(PostData post) async {
+    if (!post.synced.value) return;
+    if (post.images.every((e) => e.value != null)) return;
+    for (var id in post.data.files) {
+      final image = await _loadImageData(id);
+      post.setImage(id, image);
+    }
+  }
+
+  Future<ImageData> _loadImageData(String id) async {
     final cloud = Modular.get<CloudService>();
-    final data = await cloud.getFile(post.data.files[index]);
+    final data = await cloud.getFile(id);
     final size = await getImageSize(data);
-    post.setImage(index, ImageData(data, size));
+    return ImageData(data, size);
   }
 }
