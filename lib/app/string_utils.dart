@@ -120,12 +120,14 @@ extension StringUtils on String {
           start + 1,
         );
         if (start > 0) {
+          int br = text.lastIndexOf(RegExp(r'(\r\n|\r|\n)'), start - 1);
+          start = br == -1 ? start : br;
           start = text.lastIndexOf(RegExp(r'^.*?', multiLine: true), start - 1);
         }
         if (end == -1) {
           text = text.substring(0, start);
         } else {
-          text = text.substring(0, start) + text.substring(end + 1);
+          text = text.replaceRange(start, end, '');
         }
       }
     } while (start != -1);

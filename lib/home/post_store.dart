@@ -38,6 +38,7 @@ class PostData extends ChangeNotifier {
 
   String? _text;
   bool _visible = false;
+  bool _visiblePending = false;
   Timer? _visibleTimer;
 
   PostData(Post post) : _data = post {
@@ -47,6 +48,7 @@ class PostData extends ChangeNotifier {
   }
 
   void syncRetry() {
+    if (!error.value) return;
     _sync.value = false;
     notifyListeners();
   }
@@ -55,7 +57,7 @@ class PostData extends ChangeNotifier {
     _data = post;
     _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
     _sync.value = post.textFile == null;
-    setVisible(_visible);
+    setVisible(_visiblePending);
     notifyListeners();
   }
 
@@ -67,7 +69,7 @@ class PostData extends ChangeNotifier {
   void setText(String text) {
     _text = text;
     _sync.value = true;
-    setVisible(_visible);
+    setVisible(_visiblePending);
     notifyListeners();
   }
 
@@ -77,7 +79,9 @@ class PostData extends ChangeNotifier {
   }
 
   void setImage(String id, ImageData data) {
-    _images[id]?.value = data;
+    if (_images[id]?.value == null) {
+      _images[id]?.value = data;
+    }
     notifyListeners();
   }
 
@@ -97,6 +101,7 @@ class PostData extends ChangeNotifier {
   }
 
   Future<void> setVisible(bool v) async {
+    _visiblePending = v;
     _visibleTimer?.cancel();
     _visibleTimer = Timer(1.seconds, () {
       _visible = v;
@@ -169,16 +174,7 @@ class PostStore {
   }
 
   Future<void> sync(Iterable<Post> posts) async {
-    for (var post in posts) {
-      _map[post.msgid]?.syncRetry();
-    }
     final cloud = Modular.get<CloudService>();
-    posts = (await Future.wait(
-      posts.map((e) => cloud.getPost(e.msgid)),
-    )).nonNulls;
-    for (var post in posts.where((e) => e.text != null)) {
-      _map[post.msgid]?.syncFrom(post);
-    }
     final futures = await cloud.syncPosts(posts.where((e) => e.text == null));
     for (var e in futures.entries) {
       if (_map.containsKey(e.key)) {
@@ -191,6 +187,17 @@ class PostStore {
           }
         });
       }
+    }
+  }
+
+  Future<void> resync(PostData post) async {
+    post.syncRetry();
+    final cloud = Modular.get<CloudService>();
+    final data = await cloud.getPost(post.data.msgid);
+    if (data != null && data.text != null) {
+      post.syncFrom(data);
+    } else {
+      sync([post._data]);
     }
   }
 
@@ -230,7 +237,6 @@ class PostStore {
 
   Future<void> loadImage(PostData post) async {
     if (!post.synced.value) return;
-    if (post.images.every((e) => e.value != null)) return;
     for (var id in post.data.files) {
       final image = await _loadImageData(id);
       post.setImage(id, image);

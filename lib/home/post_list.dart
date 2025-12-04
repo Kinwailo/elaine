@@ -100,9 +100,9 @@ class PostTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
+    useMemoized(() => posts.loadQuote(post), [post.quote.value]);
+    useMemoized(() => posts.loadImage(post), [...post.images]);
     final quote = post.quote.value;
-    posts.loadQuote(post);
-    posts.loadImage(post);
     useListenable(post);
     useListenable(post.quote.value);
     useValueChanged(post.read.value, (_, _) async {
@@ -152,7 +152,7 @@ class PostTileText extends HookWidget {
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
     final GestureRecognizer recognizer = useMemoized(
-      () => TapGestureRecognizer()..onTap = () => posts.sync([post.data]),
+      () => TapGestureRecognizer()..onTap = () => posts.resync(post),
       [post.error.value],
     );
     useEffect(() => recognizer.dispose, [post.error.value]);
