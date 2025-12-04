@@ -1,4 +1,6 @@
+import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
+import 'package:elaine/services/data_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -15,10 +17,20 @@ class ThreadData {
   Thread get data => _data;
   final Thread _data;
 
-  ThreadData(Thread thread) : _data = thread;
+  final DataValue _dataValue;
+
+  ThreadData(Thread thread)
+    : _data = thread,
+      _dataValue = DataValue(thread.group, '${thread.number}') {
+    _read.value = _dataValue.get('read') ?? 0;
+  }
 
   void markRead(int read) {
-    if (read > _read.value) _read.value = read;
+    if (read > _read.value) {
+      _read.value = read;
+      _dataValue.set('read', read);
+      _dataValue.set('date', DateFormat('yyyy-MM-dd').format(DateTime.now()));
+    }
   }
 }
 
