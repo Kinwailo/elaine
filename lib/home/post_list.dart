@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -111,7 +112,7 @@ class PostTile extends HookWidget {
     return VisibilityDetector(
       key: key!,
       onVisibilityChanged: (info) {
-        if (info.visibleFraction > 56.0 / info.size.height) {
+        if (info.visibleFraction > (56.0 / info.size.height)) {
           post.setVisible(true);
         } else if (info.visibleFraction == 0.0) {
           post.setVisible(false);
@@ -150,6 +151,12 @@ class PostTileText extends HookWidget {
   Widget build(BuildContext context) {
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
+    final GestureRecognizer recognizer = useMemoized(
+      () => TapGestureRecognizer()..onTap = () => posts.sync([post.data]),
+      [post.error.value],
+    );
+    useEffect(() => recognizer.dispose, [post.error.value]);
+    useListenable(post.error);
     return Text.rich(
       TextSpan(
         children: [
@@ -163,12 +170,23 @@ class PostTileText extends HookWidget {
             ),
             WidgetSpan(child: SizedBox(width: 4)),
           ],
-          post.data.html
-              ? WidgetSpan(child: Html(data: post.getText()))
-              : TextSpan(
-                  text: post.getText(),
-                  style: post.error.value ? errorTextStyle : mainTextStyle,
+          if (post.error.value)
+            TextSpan(
+              text: post.getText(),
+              style: mainTextStyle.merge(errorTextStyle),
+              children: [
+                WidgetSpan(child: SizedBox(width: 4)),
+                TextSpan(
+                  text: retryText,
+                  recognizer: recognizer,
+                  style: mainTextStyle.merge(clickableTextStyle),
                 ),
+              ],
+            )
+          else
+            post.data.html
+                ? WidgetSpan(child: Html(data: post.getText()))
+                : TextSpan(text: post.getText(), style: mainTextStyle),
         ],
       ),
     );

@@ -46,6 +46,11 @@ class PostData extends ChangeNotifier {
     _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
   }
 
+  void syncRetry() {
+    _sync.value = false;
+    notifyListeners();
+  }
+
   void syncFrom(Post post) {
     _data = post;
     _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
@@ -164,13 +169,22 @@ class PostStore {
   }
 
   Future<void> sync(Iterable<Post> posts) async {
+    for (var post in posts) {
+      _map[post.msgid]?.syncRetry();
+    }
     final cloud = Modular.get<CloudService>();
+    posts = (await Future.wait(
+      posts.map((e) => cloud.getPost(e.msgid)),
+    )).nonNulls;
+    for (var post in posts.where((e) => e.text != null)) {
+      _map[post.msgid]?.syncFrom(post);
+    }
     final futures = await cloud.syncPosts(posts.where((e) => e.text == null));
     for (var e in futures.entries) {
       if (_map.containsKey(e.key)) {
         e.value.then((v) {
-          _map[e.key]?.syncError();
           if (v == null) {
+            _map[e.key]?.syncError();
           } else {
             _map[e.key]?.syncFrom(v);
             _loadTextFile(_map[e.key]!);

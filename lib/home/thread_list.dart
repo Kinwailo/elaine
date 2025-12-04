@@ -179,7 +179,9 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
                   children: [
                     Text(
                       msg,
-                      style: syncTotal == -1 ? errorTextStyle : pinnedTextStyle,
+                      style: pinnedTextStyle.merge(
+                        syncTotal == -1 ? errorTextStyle : null,
+                      ),
                     ),
                     Spacer(),
                     AnimatedOpacity(
