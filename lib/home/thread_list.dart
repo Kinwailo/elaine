@@ -122,7 +122,7 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
         ),
         IconButton(
           onPressed: () {
-            home.refreshGroups();
+            home.refresh();
           },
           icon: refreshing
               ? Icon(Icons.refresh)

@@ -14,11 +14,12 @@ import '../services/cloud_service.dart';
 import '../services/models.dart';
 import 'thread_store.dart';
 
+typedef SyncListenable = SelectedListenable<bool, bool?>;
+
 class PostData extends ChangeNotifier {
-  SelectedListenable<bool, bool?> get synced => _sync.select((e) => e == true);
-  SelectedListenable<bool, bool?> get syncing =>
-      _sync.select((e) => e == false);
-  SelectedListenable<bool, bool?> get error => _sync.select((e) => e == null);
+  SyncListenable get synced => _sync.select((e) => e == true);
+  SyncListenable get syncing => _sync.select((e) => e == false);
+  SyncListenable get error => _sync.select((e) => e == null);
   final _sync = ValueNotifier<bool?>(false);
 
   ValueListenable<PostData?> get quote => _quote;
@@ -103,7 +104,7 @@ class PostData extends ChangeNotifier {
   Future<void> setVisible(bool v) async {
     _visiblePending = v;
     _visibleTimer?.cancel();
-    _visibleTimer = Timer(1.seconds, () {
+    _visibleTimer = Timer(0.5.seconds, () {
       _visible = v;
       if (_visible && synced.value) {
         _read.value = true;
@@ -127,8 +128,8 @@ class PostStore {
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  int get selected => _select.value;
-  final _select = ValueNotifier<int>(0);
+  int get selected => _select;
+  int _select = 0;
 
   final _map = <String, PostData>{};
 
@@ -137,6 +138,10 @@ class PostStore {
   String? _cursorEnd;
 
   Listenable get all => Listenable.merge(_map.values);
+
+  void select(int number) {
+    _select = number;
+  }
 
   void refresh() {
     _cursorEnd = null;

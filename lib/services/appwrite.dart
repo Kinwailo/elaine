@@ -30,7 +30,10 @@ class AppWrite extends CloudService {
         : await tablesDB.listRows(
             databaseId: 'elaine',
             tableId: 'groups',
-            queries: [Query.equal('group', groups), Query.limit(groups.length)],
+            queries: [
+              Query.equal('group', [...groups]),
+              Query.limit(groups.length),
+            ],
           );
     return rows.rows.isEmpty
         ? []

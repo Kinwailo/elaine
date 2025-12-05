@@ -40,7 +40,7 @@ class HomeModule extends Module {
           child: (_) {
             final home = Modular.get<HomeStore>();
             final group = r.args.params['group'];
-            if (group != null) home.selectGroup(group);
+            if (group != null) home.select(group);
             return ThreadList();
           },
           transition: TransitionType.noTransition,
@@ -88,7 +88,7 @@ class HomePage extends HookWidget {
                       Expanded(
                         child: Scaffold(
                           key: scaffoldKey,
-                          drawer: Drawer(),
+                          drawer: Drawer(width: 120, child: GroupList()),
                           body: const RouterOutlet(),
                         ),
                       ),
@@ -106,7 +106,7 @@ class HomePage extends HookWidget {
                         },
                         icon: const Icon(Icons.add),
                       ),
-                      trailing: FilterChipItem(),
+                      trailing: SideBar(),
                       destinations: [],
                     ),
                   ),
@@ -120,35 +120,75 @@ class HomePage extends HookWidget {
   }
 }
 
-class FilterChipItem extends HookWidget {
-  const FilterChipItem({super.key});
+class GroupList extends HookWidget {
+  const GroupList({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    useListenable(home.groups);
+    return ListView(
+      padding: EdgeInsetsGeometry.symmetric(vertical: 8),
+      children: home.groups.value
+          .map(
+            (e) => ChipItem(
+              e.data.name,
+              onPress: () {
+                home.select(e.data.group);
+                Navigator.of(context).pop();
+              },
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class SideBar extends HookWidget {
+  const SideBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final home = Modular.get<HomeStore>();
+    final group = home.selected.value;
+    useListenable(home.selected);
+    return Visibility(
+      visible: group != null,
+      child: ChipItem(group?.data.name ?? ''),
+    );
+  }
+}
+
+class ChipItem extends HookWidget {
+  const ChipItem(this.name, {super.key, this.onPress});
+
+  final String name;
+  final void Function()? onPress;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final chipTheme = Theme.of(context).chipTheme;
-    final name = useState('chat');
-    final enabled = useState(false);
+    final selected = useState(false);
 
     return Card(
       elevation: 2,
-      margin: const EdgeInsets.all(8),
-      color: enabled.value
+      margin: const EdgeInsetsGeometry.symmetric(vertical: 4, horizontal: 16),
+      color: selected.value
           ? colorScheme.secondaryContainer
-          : chipTheme.selectedColor,
+          : colorScheme.surfaceContainerHighest,
       shadowColor: colorScheme.shadow,
       shape: StadiumBorder(
         side: BorderSide(
-          color: enabled.value
-              ? colorScheme.surface.withValues(alpha: 0.12)
-              : colorScheme.outline.withValues(alpha: 0.12),
+          color: selected.value
+              ? colorScheme.secondary.withValues(alpha: 0.5)
+              : colorScheme.outline.withValues(alpha: 0.5),
         ),
       ),
       child: InkWell(
-        onTap: () => enabled.value = !enabled.value,
+        onTap: onPress,
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text(name.value),
+          child: Text(name, textAlign: TextAlign.center),
         ),
       ),
     );

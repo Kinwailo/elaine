@@ -1,4 +1,3 @@
-import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import 'package:elaine/services/data_store.dart';
 import 'package:flutter/foundation.dart';
@@ -26,10 +25,10 @@ class ThreadData {
   }
 
   void markRead(int read) {
-    if (read > _read.value) {
+    if (read >= _read.value) {
       _read.value = read;
       _dataValue.set('read', read);
-      _dataValue.set('date', DateFormat('yyyy-MM-dd').format(DateTime.now()));
+      _dataValue.set('date', DateTime.now().toIso8601String());
     }
   }
 }
@@ -45,8 +44,8 @@ class ThreadStore {
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  ThreadData? get selected => _select.value;
-  final _select = ValueNotifier<ThreadData?>(null);
+  ThreadData? get selected => _select;
+  ThreadData? _select;
 
   final _map = <String, ThreadData>{};
 
@@ -71,7 +70,7 @@ class ThreadStore {
     }
     if (thread == null) return;
     final data = _map.putIfAbsent(thread.msgid, () => ThreadData(thread!));
-    _select.value = data;
+    _select = data;
 
     if (_tile.value == null) {
       _pItems.append([data]);
@@ -112,7 +111,7 @@ class ThreadStore {
     final cloud = Modular.get<CloudService>();
     final order = ['date', 'latest', 'hot'];
     final items = await cloud.getThreads(
-      home.groups.value.map((e) => e.group),
+      home.subscribed.map((e) => e.data.group),
       _itemsPreFetch,
       order,
       cursor: _cursorStart,
@@ -137,7 +136,7 @@ class ThreadStore {
     final cloud = Modular.get<CloudService>();
     final order = ['date', 'latest', 'hot'];
     final items = await cloud.getThreads(
-      home.groups.value.map((e) => e.group),
+      home.subscribed.map((e) => e.data.group),
       _itemsPreFetch,
       order,
       cursor: _cursorEnd,
