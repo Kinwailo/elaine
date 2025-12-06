@@ -28,7 +28,7 @@ class ThreadData {
     if (read >= _read.value) {
       _read.value = read;
       _dataValue.set('read', read);
-      _dataValue.set('date', DateTime.now().toIso8601String());
+      _dataValue.set('latestRead', DateTime.now().toIso8601String());
     }
   }
 }
