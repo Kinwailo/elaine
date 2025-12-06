@@ -64,6 +64,7 @@ class AppWrite extends CloudService {
     final ids = groups.map((e) => e.id).toList();
     final channels = ids.map((e) => 'databases.elaine.tables.groups.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
+    final stream = subscription.stream.timeout(10.seconds);
 
     final names = groups.map((e) => e.group).toList();
     for (var name in names) {
@@ -77,7 +78,6 @@ class AppWrite extends CloudService {
     }
 
     final waiting = names.toSet();
-    final stream = subscription.stream.timeout(10.seconds);
     try {
       await for (var response in stream) {
         final data = response.payload;
@@ -136,6 +136,7 @@ class AppWrite extends CloudService {
     final ids = posts.map((e) => e.id).toList();
     final channels = ids.map((e) => 'databases.elaine.tables.posts.rows.$e');
     final subscription = realtime.subscribe(channels.toList());
+    final stream = subscription.stream.timeout(10.seconds);
 
     final msgids = posts.map((e) => e.msgid).toList();
     final data = '[${msgids.map((e) => '"$e"').join(',')}]';
@@ -148,8 +149,6 @@ class AppWrite extends CloudService {
     );
 
     final waiting = {for (var msgid in msgids) msgid: Completer<Post?>()};
-
-    final stream = subscription.stream.timeout(10.seconds);
     try {
       await for (var response in stream) {
         final data = response.payload;

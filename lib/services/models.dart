@@ -1,3 +1,4 @@
+import '../app/utils.dart';
 import 'cloud_service.dart';
 
 class Group {
@@ -9,14 +10,12 @@ class Group {
   final DateTime update;
 
   Group(RowData data)
-    : id = (data['\$id'] ?? '') as String,
+    : id = (data[r'$id'] ?? '') as String,
       group = (data['group'] ?? 'Null') as String,
       name = (data['name'] ?? 'Null') as String,
       number = (data['num'] ?? 0) as int,
       total = (data['total'] ?? 0) as int,
-      update = DateTime.parse(
-        data['update'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
-      ).toLocal();
+      update = parseDateTime(data['update']);
 }
 
 class Thread {
@@ -30,22 +29,22 @@ class Thread {
   final DateTime date;
   final int number;
   final String msgid;
+  final DateTime create;
+  final DateTime update;
 
   Thread(RowData data)
-    : id = (data['\$id'] ?? '') as String,
+    : id = (data[r'$id'] ?? '') as String,
       group = (data['group'] ?? '') as String,
       subject = ((data['subject'] ?? '') as String).trim(),
       sender = ((data['sender'] ?? '') as String).trim(),
       hot = ((data['hot'] ?? 0.0) as num).toDouble(),
       total = (data['total'] ?? 1) as int,
-      latest = DateTime.parse(
-        data['latest'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
-      ).toLocal(),
-      date = DateTime.parse(
-        data['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
-      ).toLocal(),
+      latest = parseDateTime(data['latest']),
+      date = parseDateTime(data['date']),
       number = (data['num'] ?? 0) as int,
-      msgid = (data['msgid'] ?? '') as String;
+      msgid = (data['msgid'] ?? '') as String,
+      create = parseDateTime(data[r'$createdAt']),
+      update = parseDateTime(data[r'$updatedAt']);
 }
 
 class Post {
@@ -62,16 +61,14 @@ class Post {
   final List<String> ref;
 
   Post(RowData data)
-    : id = (data['\$id'] ?? '') as String,
+    : id = (data[r'$id'] ?? '') as String,
       thread = (data['thread'] ?? '') as String,
       sender = ((data['sender'] ?? '') as String).trim(),
       text = (data['text'] as String?),
       html = (data['html'] ?? false) as bool,
       textFile = data['textfile'] as String?,
       files = ((data['files'] ?? []) as List).map((e) => e as String).toList(),
-      date = DateTime.parse(
-        data['date'] ?? DateTime.fromMillisecondsSinceEpoch(0).toString(),
-      ).toLocal(),
+      date = parseDateTime(data['date']),
       number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String,
       ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList();

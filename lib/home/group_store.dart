@@ -5,6 +5,7 @@ import 'package:elaine/services/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
+import '../app/const.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import '../services/data_store.dart';
@@ -15,22 +16,30 @@ const String defaultGroup = 'general.chat';
 class GroupData {
   final Group data;
 
-  late DateTime _date;
+  DateTime get lastRefresh => _lastRefresh;
+  late DateTime _lastRefresh;
+  late DateTime _latestRefresh;
 
   final DataValue _dataValue;
 
   GroupData(this.data) : _dataValue = DataValue(data.group, 'info') {
-    _date = DateTime.tryParse(_dataValue.get('date') ?? '') ?? DateTime.now();
+    _lastRefresh =
+        DateTime.tryParse(_dataValue.get('lastRefresh') ?? '') ?? refDateTime;
+    _latestRefresh =
+        DateTime.tryParse(_dataValue.get('latestRefresh') ?? '') ?? refDateTime;
   }
 
   void update() {
-    _dataValue.set('date', DateTime.now().toIso8601String());
+    _lastRefresh = _latestRefresh;
+    _dataValue.set('lastRefresh', _lastRefresh.toIso8601String());
+    _latestRefresh = DateTime.now();
+    _dataValue.set('latestRefresh', _latestRefresh.toIso8601String());
   }
 }
 
-class HomeStore {
-  ListListenable<GroupData> get groups => _groups;
-  final _groups = ListNotifier<GroupData>([]);
+class GroupStore {
+  ListListenable<GroupData> get items => _items;
+  final _items = ListNotifier<GroupData>([]);
 
   final _map = <String, GroupData>{};
 
@@ -48,22 +57,27 @@ class HomeStore {
   ValueListenable<int> get syncTotal => _syncTotal;
   final _syncTotal = ValueNotifier<int>(0);
 
-  HomeStore() {
+  GroupStore() {
     select(null);
   }
 
+  GroupData? get(String group) {
+    return _map[group];
+  }
+
   Future<void> select(String? group) async {
-    if (groups.isEmpty) {
+    if (items.isEmpty) {
       final cloud = Modular.get<CloudService>();
-      final items = await cloud.getGroups();
-      if (groups.isEmpty) {
-        final groups = items.map((e) => GroupData(e)).toList();
+      final groups = (await cloud.getGroups())
+          .map((e) => GroupData(e))
+          .toList();
+      if (items.isEmpty) {
         _map.addAll({for (var group in groups) group.data.group: group});
-        _groups.append(groups);
+        _items.append(groups);
       }
     }
     if (_selected.value?.data.group == group) return;
-    _selected.value = groups.value.firstWhereOrNull(
+    _selected.value = items.value.firstWhereOrNull(
       (e) => e.data.group == group,
     );
     final threads = Modular.get<ThreadStore>();
@@ -71,6 +85,9 @@ class HomeStore {
   }
 
   Future<void> refresh() async {
+    void update(GroupData g) => g.update();
+    subscribed.forEach(update);
+
     _refreshing.value = true;
     final threads = Modular.get<ThreadStore>();
     threads.refresh();
@@ -79,18 +96,18 @@ class HomeStore {
     final groups = await cloud.getGroups(
       groups: subscribed.map((e) => e.data.group),
     );
-    final update = groups.where(
+    final updates = groups.where(
       (e) => DateTime.now().difference(e.update).inSeconds > 5,
     );
-    if (update.isEmpty) {
+    if (updates.isEmpty) {
       _refreshing.value = false;
       return;
     }
 
-    final numbers = await cloud.checkGroups(update.map((e) => e.group));
+    final numbers = await cloud.checkGroups(updates.map((e) => e.group));
     _refreshing.value = false;
 
-    final sync = update.where(
+    final sync = updates.where(
       (e) => (numbers[e.group]?.elementAt(1) ?? 0) > e.number,
     );
     final total = sync.map((e) {

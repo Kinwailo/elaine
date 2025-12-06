@@ -4,7 +4,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 import '../services/appwrite.dart';
 import '../services/cloud_service.dart';
-import 'home_store.dart';
+import 'group_store.dart';
 import 'post_store.dart';
 import 'thread_list.dart';
 import 'post_list.dart';
@@ -14,7 +14,7 @@ class HomeModule extends Module {
   @override
   void binds(i) {
     i.addSingleton<CloudService>(AppWrite.new);
-    i.addSingleton(HomeStore.new);
+    i.addSingleton(GroupStore.new);
     i.addSingleton(ThreadStore.new);
     i.addSingleton(PostStore.new);
   }
@@ -38,9 +38,9 @@ class HomeModule extends Module {
         ChildRoute(
           '/:group',
           child: (_) {
-            final home = Modular.get<HomeStore>();
+            final groups = Modular.get<GroupStore>();
             final group = r.args.params['group'];
-            if (group != null) home.select(group);
+            if (group != null) groups.select(group);
             return ThreadList();
           },
           transition: TransitionType.noTransition,
@@ -125,16 +125,16 @@ class GroupList extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
-    useListenable(home.groups);
+    final groups = Modular.get<GroupStore>();
+    useListenable(groups.items);
     return ListView(
       padding: EdgeInsetsGeometry.symmetric(vertical: 8),
-      children: home.groups.value
+      children: groups.items.value
           .map(
             (e) => ChipItem(
               e.data.name,
               onPress: () {
-                home.select(e.data.group);
+                groups.select(e.data.group);
                 Navigator.of(context).pop();
               },
             ),
@@ -149,9 +149,9 @@ class SideBar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
-    final group = home.selected.value;
-    useListenable(home.selected);
+    final groups = Modular.get<GroupStore>();
+    final group = groups.selected.value;
+    useListenable(groups.selected);
     return Visibility(
       visible: group != null,
       child: ChipItem(group?.data.name ?? ''),

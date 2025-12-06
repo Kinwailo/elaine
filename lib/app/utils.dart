@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import 'const.dart';
+
 int get hotRef => DateTime.now().difference(DateTime(2025, 10, 1)).inSeconds;
 
 ValueNotifier<T?> futureToNotifier<T>(Future<T> future, {T? initialValue}) {
@@ -28,6 +30,10 @@ Future<Size> getImageSize(Uint8List data) async {
         ),
       );
   return completer.future;
+}
+
+DateTime parseDateTime(String? s) {
+  return DateTime.parse(s ?? refDateTime.toString()).toLocal();
 }
 
 extension StringFormatter on String {

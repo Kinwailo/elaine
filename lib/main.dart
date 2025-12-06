@@ -4,7 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 import 'app/app_theme.dart';
 import 'home/home_page.dart';
-import 'home/home_store.dart';
+import 'home/group_store.dart';
 
 void main() {
   usePathUrlStrategy();

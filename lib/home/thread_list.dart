@@ -8,7 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
-import 'home_store.dart';
+import 'group_store.dart';
 import 'thread_store.dart';
 
 class ThreadList extends HookWidget {
@@ -22,7 +22,7 @@ class ThreadList extends HookWidget {
     final extraBackward = threads.reachStart ? 0 : 1;
     final countForward = threads.pItems.length;
     final extraForward = threads.reachEnd ? 0 : 1;
-    estimateTextHeight('（）', mainTextStyle);
+    // estimateTextHeight('（）', mainTextStyle);
     final controller = useScrollController();
     final anim = useAnimationController(duration: 200.ms);
     useAnimation(anim);
@@ -100,9 +100,9 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
-    final refreshing = home.refreshing.value;
-    useListenable(home.refreshing);
+    final groups = Modular.get<GroupStore>();
+    final refreshing = groups.refreshing.value;
+    useListenable(groups.refreshing);
     return AppBar(
       toolbarHeight: kToolbarHeight - 12,
       title: Text('', style: mainTextStyle),
@@ -122,7 +122,7 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
         ),
         IconButton(
           onPressed: () {
-            home.refresh();
+            groups.refresh();
           },
           icon: refreshing
               ? Icon(Icons.refresh)
@@ -151,8 +151,8 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final home = Modular.get<HomeStore>();
-    final syncTotal = home.syncTotal.value;
+    final groups = Modular.get<GroupStore>();
+    final syncTotal = groups.syncTotal.value;
     final msg = syncTotal > 0
         ? syncOverviewText.format([syncTotal])
         : syncTotal == 0
@@ -164,7 +164,7 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
           ? anim.forward()
           : Future.delayed(2.seconds, () => anim.reverse()),
     );
-    useListenable(home.syncTotal);
+    useListenable(groups.syncTotal);
     return Column(
       children: [
         Divider(height: 1),
@@ -252,6 +252,7 @@ class ThreadTile extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final groups = Modular.get<GroupStore>();
     final threads = Modular.get<ThreadStore>();
     final number = threads.getTile();
     final selected = thread.data.number == number;
@@ -261,7 +262,13 @@ class ThreadTile extends HookWidget {
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.data.date;
-    final new_ = 0;
+    final group = groups.get(thread.data.group);
+    final lastRefresh = group?.lastRefresh ?? refDateTime;
+    final newThread =
+        date.isAfter(lastRefresh) || thread.data.create.isAfter(lastRefresh);
+    final newReply =
+        thread.data.latest.isAfter(lastRefresh) ||
+        thread.data.update.isAfter(lastRefresh);
     final unread = thread.data.total - thread.read.value;
     // final hot = (thread.hot * 100.0 / hotRef).round();
     final link = '/${thread.data.group}/${thread.data.number}';
@@ -278,7 +285,18 @@ class ThreadTile extends HookWidget {
           threads.updateTile(thread.data.number);
         },
         child: Container(
-          color: color,
+          decoration: BoxDecoration(
+            color: color,
+            border: !newThread
+                ? null
+                : Border(
+                    left: BorderSide(
+                      color: newColor,
+                      width: 4,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+          ),
           child: Opacity(
             opacity: unread == 0 ? 0.5 : 1.0,
             child: Padding(
@@ -304,17 +322,11 @@ class ThreadTile extends HookWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Badge(
-                    backgroundColor: unreadColor,
+                  Badge.count(
+                    count: unread,
+                    backgroundColor: newReply ? newColor : unreadColor,
                     offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
                     isLabelVisible: unread > 0 && unread != thread.data.total,
-                    label: Row(
-                      children: [
-                        if (new_ != unread && new_ > 0)
-                          Badge(backgroundColor: newColor),
-                        Text('$unread'),
-                      ],
-                    ),
                     child: Text(thread.data.subject, style: mainTextStyle),
                   ),
                 ],

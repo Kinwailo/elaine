@@ -20,3 +20,5 @@ const clickableTextStyle = TextStyle(
 
 const unreadColor = Colors.blueAccent;
 const newColor = Colors.redAccent;
+
+final refDateTime = DateTime.fromMillisecondsSinceEpoch(0);

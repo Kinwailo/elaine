@@ -6,7 +6,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import '../services/models.dart';
-import 'home_store.dart';
+import 'group_store.dart';
 import 'post_store.dart';
 
 class ThreadData {
@@ -103,15 +103,16 @@ class ThreadStore {
     _reachEnd = false;
     _nItems.clear();
     _tile.value = null;
+    _map.clear();
   }
 
   Future<void> prependMore() async {
     if (_reachStart || _cursorStart == null) return;
-    final home = Modular.get<HomeStore>();
+    final groups = Modular.get<GroupStore>();
     final cloud = Modular.get<CloudService>();
     final order = ['date', 'latest', 'hot'];
     final items = await cloud.getThreads(
-      home.subscribed.map((e) => e.data.group),
+      groups.subscribed.map((e) => e.data.group),
       _itemsPreFetch,
       order,
       cursor: _cursorStart,
@@ -132,11 +133,11 @@ class ThreadStore {
 
   Future<void> appendMore() async {
     if (_reachEnd) return;
-    final home = Modular.get<HomeStore>();
+    final groups = Modular.get<GroupStore>();
     final cloud = Modular.get<CloudService>();
     final order = ['date', 'latest', 'hot'];
     final items = await cloud.getThreads(
-      home.subscribed.map((e) => e.data.group),
+      groups.subscribed.map((e) => e.data.group),
       _itemsPreFetch,
       order,
       cursor: _cursorEnd,
