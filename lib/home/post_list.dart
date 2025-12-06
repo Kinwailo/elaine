@@ -101,7 +101,10 @@ class PostTile extends HookWidget {
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
     useMemoized(() => posts.loadQuote(post), [post.quote.value]);
-    useMemoized(() => posts.loadImage(post), [...post.images]);
+    useMemoized(() => posts.loadImage(post), [
+      ...post.images,
+      post.synced.value,
+    ]);
     final quote = post.quote.value;
     useListenable(post);
     useListenable(post.quote.value);

@@ -5,7 +5,6 @@ import 'package:elaine/services/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
-import '../app/const.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import '../services/data_store.dart';
@@ -23,10 +22,8 @@ class GroupData {
   final DataValue _dataValue;
 
   GroupData(this.data) : _dataValue = DataValue(data.group, 'info') {
-    _lastRefresh =
-        DateTime.tryParse(_dataValue.get('lastRefresh') ?? '') ?? refDateTime;
-    _latestRefresh =
-        DateTime.tryParse(_dataValue.get('latestRefresh') ?? '') ?? refDateTime;
+    _lastRefresh = parseDateTime(_dataValue.get('lastRefresh'));
+    _latestRefresh = parseDateTime(_dataValue.get('latestRefresh'));
   }
 
   void update() {

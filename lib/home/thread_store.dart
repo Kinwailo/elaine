@@ -12,6 +12,8 @@ import 'post_store.dart';
 class ThreadData {
   ValueListenable<int> get read => _read;
   final _read = ValueNotifier<int>(0);
+  DateTime get latestRead => _latestRead;
+  late DateTime _latestRead;
 
   Thread get data => _data;
   final Thread _data;
@@ -22,13 +24,15 @@ class ThreadData {
     : _data = thread,
       _dataValue = DataValue(thread.group, '${thread.number}') {
     _read.value = _dataValue.get('read') ?? 0;
+    _latestRead = parseDateTime(_dataValue.get('latestRead'));
   }
 
   void markRead(int read) {
     if (read >= _read.value) {
       _read.value = read;
       _dataValue.set('read', read);
-      _dataValue.set('latestRead', DateTime.now().toIso8601String());
+      _latestRead = DateTime.now();
+      _dataValue.set('latestRead', _latestRead.toIso8601String());
     }
   }
 }

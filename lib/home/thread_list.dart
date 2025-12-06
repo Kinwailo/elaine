@@ -1,3 +1,4 @@
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -291,7 +292,7 @@ class ThreadTile extends HookWidget {
                 ? null
                 : Border(
                     left: BorderSide(
-                      color: newColor,
+                      color: newColor.darken(index % 2 * 10),
                       width: 4,
                       style: BorderStyle.solid,
                     ),
