@@ -51,6 +51,7 @@ class Post {
   final String id;
   final String thread;
   final String sender;
+  final int total;
   final String? text;
   final bool html;
   final String? textFile;
@@ -59,11 +60,14 @@ class Post {
   final int number;
   final String msgid;
   final List<String> ref;
+  final DateTime create;
+  final DateTime update;
 
   Post(RowData data)
     : id = (data[r'$id'] ?? '') as String,
       thread = (data['thread'] ?? '') as String,
       sender = ((data['sender'] ?? '') as String).trim(),
+      total = (data['total'] ?? 1) as int,
       text = (data['text'] as String?),
       html = (data['html'] ?? false) as bool,
       textFile = data['textfile'] as String?,
@@ -71,12 +75,15 @@ class Post {
       date = parseDateTime(data['date']),
       number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String,
-      ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList();
+      ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList(),
+      create = parseDateTime(data[r'$createdAt']),
+      update = parseDateTime(data[r'$updatedAt']);
 
   Post.from(Post post)
     : id = post.id,
       thread = post.thread,
       sender = post.sender,
+      total = post.total,
       text = post.text,
       html = post.html,
       textFile = post.textFile,
@@ -84,5 +91,7 @@ class Post {
       date = post.date,
       number = post.number,
       msgid = post.msgid,
-      ref = post.ref;
+      ref = post.ref,
+      create = post.create,
+      update = post.update;
 }

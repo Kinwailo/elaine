@@ -8,6 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
+import 'group_store.dart';
 import 'post_store.dart';
 import 'thread_store.dart';
 
@@ -98,6 +99,8 @@ class PostTile extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final groups = Modular.get<GroupStore>();
+    final threads = Modular.get<ThreadStore>();
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
     useMemoized(() => posts.loadQuote(post), [post.quote.value]);
@@ -106,6 +109,12 @@ class PostTile extends HookWidget {
       post.synced.value,
     ]);
     final quote = post.quote.value;
+
+    final group = groups.get(threads.selected?.data.group ?? '');
+    final lastRefresh = group?.lastRefresh ?? refDateTime;
+    final isNew = post.data.date.isAfter(lastRefresh);
+    final isUnread = index >= posts.read;
+
     useListenable(post);
     useListenable(post.quote.value);
     useValueChanged(post.read.value, (_, _) async {
@@ -124,7 +133,18 @@ class PostTile extends HookWidget {
       child: Padding(
         padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
         child: Container(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            border: !isNew && !isUnread
+                ? null
+                : Border(
+                    left: BorderSide(
+                      color: isNew ? newColor : unreadColor,
+                      width: 2,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: SelectionArea(
@@ -217,6 +237,9 @@ class PostTileHeadbar extends HookWidget {
             ),
           ),
           Spacer(),
+          if (post.data.total > 0)
+            Text('🗨️${post.data.total}', style: subTextStyle),
+          const SizedBox(width: 16),
           InkWell(
             onTap: () => post.setOriginal(!post.original.value),
             child: Tooltip(

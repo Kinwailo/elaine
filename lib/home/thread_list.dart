@@ -293,7 +293,7 @@ class ThreadTile extends HookWidget {
                 : Border(
                     left: BorderSide(
                       color: newColor.darken(index % 2 * 10),
-                      width: 4,
+                      width: 2,
                       style: BorderStyle.solid,
                     ),
                   ),

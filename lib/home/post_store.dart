@@ -131,6 +131,9 @@ class PostStore {
   int get selected => _select;
   int _select = 0;
 
+  int get read => _read;
+  int _read = 0;
+
   final _map = <String, PostData>{};
 
   static const _itemsPreFetch = 25;
@@ -144,6 +147,8 @@ class PostStore {
   }
 
   void refresh() {
+    final threads = Modular.get<ThreadStore>();
+    _read = threads.selected?.read.value ?? 0;
     _cursorEnd = null;
     _reachEnd = false;
     _pItems.clear();
