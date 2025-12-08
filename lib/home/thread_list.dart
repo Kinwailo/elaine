@@ -277,7 +277,7 @@ class ThreadTile extends HookWidget {
     useListenable(thread.read);
     return Link(
       uri: Uri.parse(link),
-      builder: (_, follow) => InkWell(
+      builder: (_, _) => InkWell(
         onTap: () async {
           Modular.to.pushNamedAndRemoveUntil(
             link,

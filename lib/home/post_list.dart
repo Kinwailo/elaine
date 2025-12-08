@@ -4,6 +4,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
+import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
@@ -117,13 +118,13 @@ class PostTile extends HookWidget {
         posts.read < (threads.selected?.data.total ?? 0) &&
         (post.data.date.isAfter(lastRefresh) ||
             post.data.create.isAfter(lastRefresh));
-    final isUnread = posts.read > 0 && index >= posts.read;
+    final isUnread = posts.read > 0 && post.data.index >= posts.read;
 
     useListenable(post);
     useListenable(post.quote.value);
     useValueChanged(post.read.value, (_, _) async {
       final threads = Modular.get<ThreadStore>();
-      return Future(() => threads.selected?.markRead(index + 1));
+      return Future(() => threads.selected?.markRead(post.data.index + 1));
     });
     return VisibilityDetector(
       key: key!,
@@ -227,8 +228,13 @@ class PostTileHeadbar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final threads = Modular.get<ThreadStore>();
     final posts = Modular.get<PostStore>();
     final post = posts.pItems[index];
+    final thread = threads.selected?.data;
+    final link = thread == null
+        ? ''
+        : '/${thread.group}/${thread.number}?post=${post.data.index + 1}';
     return Row(
       children: [
         ...<Widget>[
@@ -251,7 +257,21 @@ class PostTileHeadbar extends HookWidget {
               child: Text('📃', style: subTextStyle),
             ),
           ),
-          Text('#${post.data.index + 1}', style: subTextStyle),
+          if (thread == null)
+            Text('#${post.data.index + 1}', style: subTextStyle)
+          else
+            Link(
+              uri: Uri.parse(link),
+              builder: (_, _) => InkWell(
+                onTap: () async {
+                  Modular.to.pushNamedAndRemoveUntil(
+                    link,
+                    ModalRoute.withName('/${thread.group}/'),
+                  );
+                },
+                child: Text('#${post.data.index + 1}', style: subTextStyle),
+              ),
+            ),
         ].separator(const SizedBox(width: 8)),
       ],
     );

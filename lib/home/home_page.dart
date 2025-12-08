@@ -53,6 +53,7 @@ class HomeModule extends Module {
                 final threads = Modular.get<ThreadStore>();
                 final group = r.args.params['group'];
                 final number = int.tryParse(r.args.params['thread']);
+                final post = int.tryParse(r.args.queryParams['post'] ?? '0');
                 if (group != null && number != null) {
                   threads.select(group, number);
                 }
