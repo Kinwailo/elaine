@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const uiGroup = '群組';
+
 const emptyText = '無內文';
 const syncBodyText = '載入發文內容中…';
 const syncOverviewText = '從新聞組同步%s封發文中…';

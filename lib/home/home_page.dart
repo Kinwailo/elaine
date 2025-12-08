@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
+import '../app/const.dart';
+import '../app/utils.dart';
 import '../services/appwrite.dart';
 import '../services/cloud_service.dart';
 import 'group_store.dart';
@@ -65,13 +67,14 @@ class HomeModule extends Module {
   }
 }
 
+final scaffoldKey = GlobalKey<ScaffoldState>();
+
 class HomePage extends HookWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final scaffoldKey = GlobalKey<ScaffoldState>();
     return SafeArea(
       child: Container(
         color: colorScheme.surfaceContainer,
@@ -84,7 +87,7 @@ class HomePage extends HookWidget {
                 children: [
                   Row(
                     children: [
-                      SizedBox(width: 80),
+                      SizedBox(width: 100),
                       Expanded(
                         child: Scaffold(
                           key: scaffoldKey,
@@ -95,17 +98,11 @@ class HomePage extends HookWidget {
                     ],
                   ),
                   SizedBox(
-                    width: 80,
+                    width: 100,
                     child: NavigationRail(
                       backgroundColor: colorScheme.surfaceContainerHigh,
                       selectedIndex: null,
                       labelType: NavigationRailLabelType.none,
-                      leading: IconButton(
-                        onPressed: () {
-                          scaffoldKey.currentState?.openDrawer();
-                        },
-                        icon: const Icon(Icons.add),
-                      ),
                       trailing: SideBar(),
                       destinations: [],
                     ),
@@ -149,12 +146,53 @@ class SideBar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final groups = Modular.get<GroupStore>();
     final group = groups.selected.value;
+    final color = colorScheme.secondaryContainer.withValues(alpha: 0.5);
+    final surface = colorScheme.surfaceContainerLow.withValues(alpha: 0.5);
     useListenable(groups.selected);
-    return Visibility(
-      visible: group != null,
-      child: ChipItem(group?.data.name ?? ''),
+    return SingleChildScrollView(
+      child: Column(
+        children: <Widget>[
+          IconButton(onPressed: () {}, icon: const Icon(Icons.settings)),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(8),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Center(child: Text(uiGroup)),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: surface,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(8),
+                    ),
+                  ),
+                  child: Visibility(
+                    visible: group != null,
+                    child: ChipItem(
+                      group?.data.name ?? '',
+                      onPress: () => scaffoldKey.currentState?.openDrawer(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ].separator(const SizedBox(height: 8)),
+      ),
     );
   }
 }
@@ -169,10 +207,9 @@ class ChipItem extends HookWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final selected = useState(false);
-
     return Card(
       elevation: 2,
-      margin: const EdgeInsetsGeometry.symmetric(vertical: 4, horizontal: 16),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       color: selected.value
           ? colorScheme.secondaryContainer
           : colorScheme.surfaceContainerHighest,
@@ -187,7 +224,7 @@ class ChipItem extends HookWidget {
       child: InkWell(
         onTap: onPress,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: EdgeInsets.all(4),
           child: Text(name, textAlign: TextAlign.center),
         ),
       ),
