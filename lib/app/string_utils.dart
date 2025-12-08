@@ -120,7 +120,7 @@ extension StringUtils on String {
           start + 1,
         );
         if (start > 0) {
-          int br = text.lastIndexOf(RegExp(r'(\r\n|\r|\n)'), start - 1);
+          int br = text.lastIndexOf(RegExp(r'$(\r\n|\r|\n)'), start - 1);
           start = br == -1 ? start : br;
           start = text.lastIndexOf(RegExp(r'^.*?', multiLine: true), start - 1);
         }

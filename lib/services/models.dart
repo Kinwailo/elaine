@@ -3,6 +3,7 @@ import 'cloud_service.dart';
 
 class Group {
   final String id;
+  final int order;
   final String group;
   final String name;
   final int number;
@@ -11,6 +12,7 @@ class Group {
 
   Group(RowData data)
     : id = (data[r'$id'] ?? '') as String,
+      order = (data['order'] ?? 0) as int,
       group = (data['group'] ?? 'Null') as String,
       name = (data['name'] ?? 'Null') as String,
       number = (data['num'] ?? 0) as int,

@@ -66,7 +66,9 @@ class GroupStore {
           .toList();
       if (items.isEmpty) {
         _map.addAll({for (var group in groups) group.data.group: group});
-        _items.append(groups);
+        _items.append(
+          groups.sorted((a, b) => a.data.order.compareTo(b.data.order)),
+        );
       }
     }
     if (_selected.value?.data.group == group) return;
