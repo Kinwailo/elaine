@@ -51,6 +51,7 @@ class Post {
   final String id;
   final String thread;
   final String sender;
+  final int index;
   final int total;
   final String? text;
   final bool html;
@@ -67,7 +68,8 @@ class Post {
     : id = (data[r'$id'] ?? '') as String,
       thread = (data['thread'] ?? '') as String,
       sender = ((data['sender'] ?? '') as String).trim(),
-      total = (data['total'] ?? 1) as int,
+      index = (data['index'] ?? 0) as int,
+      total = (data['total'] ?? 0) as int,
       text = (data['text'] as String?),
       html = (data['html'] ?? false) as bool,
       textFile = data['textfile'] as String?,
@@ -83,6 +85,7 @@ class Post {
     : id = post.id,
       thread = post.thread,
       sender = post.sender,
+      index = post.index,
       total = post.total,
       text = post.text,
       html = post.html,

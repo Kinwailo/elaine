@@ -183,7 +183,7 @@ class AppWrite extends CloudService {
       tableId: 'posts',
       queries: [
         Query.equal('thread', msgid),
-        Query.orderAsc('num'),
+        Query.orderAsc('index'),
         Query.limit(limit),
         if (cursor != null) Query.cursorAfter(cursor),
       ],

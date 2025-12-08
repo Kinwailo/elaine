@@ -251,7 +251,7 @@ class PostTileHeadbar extends HookWidget {
               child: Text('📃', style: subTextStyle),
             ),
           ),
-          Text('#${index + 1}', style: subTextStyle),
+          Text('#${post.data.index + 1}', style: subTextStyle),
         ].separator(const SizedBox(width: 8)),
       ],
     );
