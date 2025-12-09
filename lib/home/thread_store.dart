@@ -89,7 +89,6 @@ class ThreadStore {
     final posts = Modular.get<PostStore>();
     if (changed || posts.selected != post) {
       posts.select(post);
-      posts.refresh();
     }
   }
 
@@ -107,10 +106,10 @@ class ThreadStore {
   Future<void> refresh() async {
     _cursorStart = null;
     _reachStart = true;
-    _pItems.clear();
+    _nItems.clear();
     _cursorEnd = null;
     _reachEnd = false;
-    _nItems.clear();
+    _pItems.clear();
     _tile.value = null;
     _map.clear();
   }

@@ -122,9 +122,13 @@ class ImageData {
 }
 
 class PostStore {
+  ListListenable<PostData> get nItems => _nItems;
+  final _nItems = ListNotifier<PostData>([]);
   ListListenable<PostData> get pItems => _pItems;
   final _pItems = ListNotifier<PostData>([]);
 
+  bool get reachStart => _reachStart;
+  var _reachStart = true;
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
@@ -138,21 +142,76 @@ class PostStore {
 
   static const _itemsPreFetch = 25;
 
+  String? _cursorStart;
   String? _cursorEnd;
 
   Listenable get all => Listenable.merge(_map.values);
 
-  void select(int index) {
+  Future<void> select(int index) async {
+    _selected = 0;
+    if (index == 0) {
+      refresh();
+      return;
+    }
+
+    final threads = Modular.get<ThreadStore>();
+    final thread = threads.selected;
+    if (thread == null) return;
+    final cloud = Modular.get<CloudService>();
+    final post = await cloud.getPostByIndex(thread.data.msgid, index);
+    if (post == null) return;
+
+    _read = threads.selected?.read.value ?? 0;
+    _cursorStart = post.id;
+    _reachStart = false;
+    _nItems.clear();
+    _cursorEnd = post.id;
+    _reachEnd = false;
+    _pItems.clear();
+    _map.clear();
+
+    final data = _map.putIfAbsent(post.msgid, () => PostData(post));
     _selected = index;
+    _pItems.append([data]);
   }
 
   void refresh() {
     final threads = Modular.get<ThreadStore>();
     _read = threads.selected?.read.value ?? 0;
+
+    _cursorStart = null;
+    _reachStart = true;
+    _nItems.clear();
     _cursorEnd = null;
     _reachEnd = false;
     _pItems.clear();
     _map.clear();
+  }
+
+  Future<void> prependMore() async {
+    final threads = Modular.get<ThreadStore>();
+    if (_reachStart || _cursorStart == null || threads.selected == null) return;
+    final cloud = Modular.get<CloudService>();
+    var items = await cloud.getPosts(
+      threads.selected!.data.msgid,
+      _itemsPreFetch,
+      cursor: _cursorStart,
+      reverse: true,
+    );
+    _reachStart = items.isEmpty || items.length < _itemsPreFetch;
+    if (_reachStart) {
+      _cursorStart = null;
+    } else {
+      _cursorStart = items.first.id;
+    }
+
+    final posts = items.map((e) => PostData(e)).toList();
+    final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
+    _map.addAll({for (var post in add) post.data.msgid: post});
+    _nItems.append(posts);
+
+    _setupPosts(posts);
+    _sync(items);
   }
 
   Future<void> loadMore() async {
@@ -175,15 +234,19 @@ class PostStore {
     _map.addAll({for (var post in add) post.data.msgid: post});
     _pItems.append(posts);
 
+    _setupPosts(posts);
+    _sync(items);
+  }
+
+  void _setupPosts(Iterable<PostData> posts) {
     for (var post in posts) {
       _loadTextFile(post);
       final qMsgid = _getQuote(post);
       if (_map.containsKey(qMsgid)) post.setQuote(_map[qMsgid]!);
     }
-    sync(items);
   }
 
-  Future<void> sync(Iterable<Post> posts) async {
+  Future<void> _sync(Iterable<Post> posts) async {
     final cloud = Modular.get<CloudService>();
     final futures = await cloud.syncPosts(posts.where((e) => e.text == null));
     for (var e in futures.entries) {
@@ -207,7 +270,7 @@ class PostStore {
     if (data != null && data.text != null) {
       post.syncFrom(data);
     } else {
-      sync([post._data]);
+      _sync([post._data]);
     }
   }
 
