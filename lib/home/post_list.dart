@@ -234,7 +234,7 @@ class PostTileHeadbar extends HookWidget {
     final thread = threads.selected?.data;
     final link = thread == null
         ? ''
-        : '/${thread.group}/${thread.number}?post=${post.data.index + 1}';
+        : '/${thread.group}/${thread.number}/${post.data.index + 1}';
     return Row(
       children: [
         ...<Widget>[
@@ -286,6 +286,11 @@ class PostTileQuote extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final posts = Modular.get<PostStore>();
+    useMemoized(() => posts.loadImage(post), [
+      ...post.images,
+      post.synced.value,
+    ]);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

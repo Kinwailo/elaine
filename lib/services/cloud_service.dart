@@ -26,7 +26,14 @@ abstract class CloudService {
 
   Future<Post?> getPost(String msgid);
 
-  Future<List<Post>> getPosts(String msgid, int limit, String? cursor);
+  Future<Post?> getPostByIndex(String thread, int index);
+
+  Future<List<Post>> getPosts(
+    String msgid,
+    int limit, {
+    String? cursor,
+    bool reverse = false,
+  });
 
   Future<Uint8List> getFile(String id);
 }

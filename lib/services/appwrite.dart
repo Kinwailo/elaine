@@ -67,15 +67,17 @@ class AppWrite extends CloudService {
     final stream = subscription.stream.timeout(10.seconds);
 
     final names = groups.map((e) => e.group).toList();
-    for (var name in names) {
-      functions.createExecution(
-        functionId: 'elaine_worker',
-        xasync: true,
-        method: ExecutionMethod.pOST,
-        headers: {'content-type': 'application/json'},
-        body: '{"action":"get_threads","data":"$name"}',
-      );
-    }
+    Future.delayed(0.5.seconds, () async {
+      for (var name in names) {
+        functions.createExecution(
+          functionId: 'elaine_worker',
+          xasync: true,
+          method: ExecutionMethod.pOST,
+          headers: {'content-type': 'application/json'},
+          body: '{"action":"get_threads","data":"$name"}',
+        );
+      }
+    });
 
     final waiting = names.toSet();
     try {
@@ -98,8 +100,7 @@ class AppWrite extends CloudService {
       databaseId: 'elaine',
       tableId: 'threads',
       queries: [
-        Query.equal('group', group),
-        Query.equal('num', number),
+        Query.and([Query.equal('group', group), Query.equal('num', number)]),
         Query.limit(1),
       ],
     );
@@ -140,12 +141,15 @@ class AppWrite extends CloudService {
 
     final msgids = posts.map((e) => e.msgid).toList();
     final data = '[${msgids.map((e) => '"$e"').join(',')}]';
-    functions.createExecution(
-      functionId: 'elaine_worker',
-      xasync: true,
-      method: ExecutionMethod.pOST,
-      headers: {'content-type': 'application/json'},
-      body: '{"action":"get_bodies","data":$data}',
+    Future.delayed(
+      0.5.seconds,
+      () async => functions.createExecution(
+        functionId: 'elaine_worker',
+        xasync: true,
+        method: ExecutionMethod.pOST,
+        headers: {'content-type': 'application/json'},
+        body: '{"action":"get_bodies","data":$data}',
+      ),
     );
 
     final waiting = {for (var msgid in msgids) msgid: Completer<Post?>()};
@@ -177,7 +181,26 @@ class AppWrite extends CloudService {
   }
 
   @override
-  Future<List<Post>> getPosts(String msgid, int limit, String? cursor) async {
+  Future<Post?> getPostByIndex(String thread, int index) async {
+    var rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'posts',
+      queries: [
+        Query.and([Query.equal('thread', thread), Query.equal('index', index)]),
+        Query.limit(1),
+      ],
+    );
+    if (rows.rows.isEmpty) return null;
+    return Post(rows.rows[0].data);
+  }
+
+  @override
+  Future<List<Post>> getPosts(
+    String msgid,
+    int limit, {
+    String? cursor,
+    bool reverse = false,
+  }) async {
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
@@ -185,7 +208,8 @@ class AppWrite extends CloudService {
         Query.equal('thread', msgid),
         Query.orderAsc('index'),
         Query.limit(limit),
-        if (cursor != null) Query.cursorAfter(cursor),
+        if (cursor != null)
+          reverse ? Query.cursorBefore(cursor) : Query.cursorAfter(cursor),
       ],
     );
     return rows.rows.map((e) => Post(e.data)).toList();

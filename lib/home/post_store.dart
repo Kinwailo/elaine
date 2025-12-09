@@ -128,8 +128,8 @@ class PostStore {
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  int get selected => _select;
-  int _select = 0;
+  int get selected => _selected;
+  int _selected = 0;
 
   int get read => _read;
   int _read = 0;
@@ -142,8 +142,8 @@ class PostStore {
 
   Listenable get all => Listenable.merge(_map.values);
 
-  void select(int number) {
-    _select = number;
+  void select(int index) {
+    _selected = index;
   }
 
   void refresh() {
@@ -162,7 +162,7 @@ class PostStore {
     var items = await cloud.getPosts(
       threads.selected!.data.msgid,
       _itemsPreFetch,
-      _cursorEnd,
+      cursor: _cursorEnd,
     );
     _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
     if (_reachEnd) {

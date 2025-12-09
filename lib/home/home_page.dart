@@ -52,10 +52,23 @@ class HomeModule extends Module {
               child: (_) {
                 final threads = Modular.get<ThreadStore>();
                 final group = r.args.params['group'];
-                final number = int.tryParse(r.args.params['thread']);
-                final post = int.tryParse(r.args.queryParams['post'] ?? '0');
-                if (group != null && number != null) {
-                  threads.select(group, number);
+                final thread = int.tryParse(r.args.params['thread'] ?? '');
+                if (group != null && thread != null) {
+                  threads.select(group, thread, 0);
+                }
+                return PostList();
+              },
+              transition: TransitionType.noTransition,
+            ),
+            ChildRoute(
+              '/:thread/:post',
+              child: (_) {
+                final threads = Modular.get<ThreadStore>();
+                final group = r.args.params['group'];
+                final thread = int.tryParse(r.args.params['thread']);
+                final post = int.tryParse(r.args.params['post']);
+                if (group != null && thread != null) {
+                  threads.select(group, thread, (post ?? 1) - 1);
                 }
                 return PostList();
               },

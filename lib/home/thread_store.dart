@@ -48,8 +48,8 @@ class ThreadStore {
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  ThreadData? get selected => _select;
-  ThreadData? _select;
+  ThreadData? get selected => _selected;
+  ThreadData? _selected;
 
   final _map = <String, ThreadData>{};
 
@@ -61,31 +61,36 @@ class ThreadStore {
   String? _cursorStart;
   String? _cursorEnd;
 
-  Future<void> select(String group, int number) async {
-    if (selected?.data.number == number) return;
-    var thread = nItems.value
-        .followedBy(pItems.value)
-        .map((e) => e.data)
-        .where((e) => e.group == group && e.number == number)
-        .firstOrNull;
-    if (thread == null) {
-      final cloud = Modular.get<CloudService>();
-      thread = await cloud.getThread(group, number);
-    }
-    if (thread == null) return;
-    final data = _map.putIfAbsent(thread.msgid, () => ThreadData(thread!));
-    _select = data;
+  Future<void> select(String group, int number, int post) async {
+    final changed = selected?.data.number != number;
+    if (changed) {
+      var thread = nItems.value
+          .followedBy(pItems.value)
+          .map((e) => e.data)
+          .where((e) => e.group == group && e.number == number)
+          .firstOrNull;
+      if (thread == null) {
+        final cloud = Modular.get<CloudService>();
+        thread = await cloud.getThread(group, number);
+      }
+      if (thread == null) return;
+      final data = _map.putIfAbsent(thread.msgid, () => ThreadData(thread!));
+      _selected = data;
 
-    if (_tile.value == null) {
-      _pItems.append([data]);
-      _cursorStart = thread.id;
-      _reachStart = false;
-      _cursorEnd = thread.id;
-      _reachEnd = false;
+      if (_tile.value == null) {
+        _pItems.append([data]);
+        _cursorStart = thread.id;
+        _reachStart = false;
+        _cursorEnd = thread.id;
+        _reachEnd = false;
+      }
     }
 
     final posts = Modular.get<PostStore>();
-    posts.refresh();
+    if (changed || posts.selected != post) {
+      posts.select(post);
+      posts.refresh();
+    }
   }
 
   int? getTile() {
