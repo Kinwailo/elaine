@@ -25,16 +25,16 @@ class HomeModule extends Module {
   void routes(r) {
     r.child(
       '/',
-      child: (context) => HomePage(),
+      child: (context) => const HomePage(key: ValueKey('HomePage')),
       children: [
         ChildRoute(
           '/groups',
-          child: (_) => ThreadList(),
+          child: (_) => const ThreadList(key: ValueKey('ThreadList')),
           transition: TransitionType.noTransition,
         ),
         ChildRoute(
           '/settings',
-          child: (_) => ThreadList(),
+          child: (_) => const ThreadList(key: ValueKey('ThreadList')),
           transition: TransitionType.noTransition,
         ),
         ChildRoute(
@@ -43,7 +43,7 @@ class HomeModule extends Module {
             final groups = Modular.get<GroupStore>();
             final group = r.args.params['group'];
             if (group != null) groups.select(group);
-            return ThreadList();
+            return const ThreadList(key: ValueKey('ThreadList'));
           },
           transition: TransitionType.noTransition,
           children: [
@@ -56,7 +56,7 @@ class HomeModule extends Module {
                 if (group != null && thread != null) {
                   threads.select(group, thread, 0);
                 }
-                return PostList();
+                return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
             ),
@@ -70,7 +70,7 @@ class HomeModule extends Module {
                 if (group != null && thread != null) {
                   threads.select(group, thread, (post ?? 1) - 1);
                 }
-                return PostList();
+                return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
             ),

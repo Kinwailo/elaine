@@ -21,10 +21,14 @@ class PostList extends HookWidget {
     const Key centerKey = ValueKey('centerPost');
     final threads = Modular.get<ThreadStore>();
     final posts = Modular.get<PostStore>();
-    final count = posts.pItems.length;
-    final extra = posts.reachEnd ? 0 : 1;
+    final countBackward = posts.nItems.length;
+    final extraBackward = posts.reachStart ? 0 : 1;
+    final countForward = posts.pItems.length;
+    final extraForward = posts.reachEnd ? 0 : 1;
     final controller = useScrollController();
+    useListenable(posts.nItems);
     useListenable(posts.pItems);
+    useListenable(posts.loading);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: kToolbarHeight - 12,
@@ -51,14 +55,35 @@ class PostList extends HookWidget {
           physics: ClampingScrollPhysics(),
           slivers: [
             SliverPadding(
-              key: centerKey,
-              padding: EdgeInsets.only(top: 2, right: 12, bottom: 2),
+              padding: EdgeInsets.only(top: 2, right: 12),
               sliver: SuperSliverList.builder(
-                itemCount: count + extra,
+                itemCount: countBackward + extraBackward,
                 itemBuilder: (_, index) {
-                  return index >= count
+                  return index >= countBackward
+                      ? MorePosts(key: UniqueKey(), prepend: true)
+                      : PostTile(
+                          key: ValueKey(posts.nItems[index]),
+                          posts.nItems[index],
+                        );
+                },
+              ),
+            ),
+            SliverPadding(
+              key: centerKey,
+              padding: EdgeInsets.only(
+                right: 12,
+                bottom: 2,
+                top: countBackward == 0 && !posts.loading.value ? 2 : 0,
+              ),
+              sliver: SuperSliverList.builder(
+                itemCount: countForward + extraForward,
+                itemBuilder: (_, index) {
+                  return index >= countForward
                       ? MorePosts(key: UniqueKey())
-                      : PostTile(key: ValueKey(posts.pItems[index]), index);
+                      : PostTile(
+                          key: ValueKey(posts.pItems[index]),
+                          posts.pItems[index],
+                        );
                 },
               ),
             ),
@@ -70,7 +95,9 @@ class PostList extends HookWidget {
 }
 
 class MorePosts extends HookWidget {
-  const MorePosts({super.key});
+  const MorePosts({super.key, this.prepend = false});
+
+  final bool prepend;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +108,7 @@ class MorePosts extends HookWidget {
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          posts.loadMore();
+          prepend ? posts.prependMore() : posts.appendMore();
         }
       },
       child: Padding(
@@ -93,9 +120,9 @@ class MorePosts extends HookWidget {
 }
 
 class PostTile extends HookWidget {
-  const PostTile(this.index, {super.key});
+  const PostTile(this.post, {super.key});
 
-  final int index;
+  final PostData post;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +130,6 @@ class PostTile extends HookWidget {
     final groups = Modular.get<GroupStore>();
     final threads = Modular.get<ThreadStore>();
     final posts = Modular.get<PostStore>();
-    final post = posts.pItems[index];
     useMemoized(() => posts.loadQuote(post), [post.quote.value]);
     useMemoized(() => posts.loadImage(post), [
       ...post.images,
@@ -156,9 +182,9 @@ class PostTile extends HookWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  PostTileHeadbar(index),
+                  PostTileHeadbar(post),
                   if (quote != null) PostTileQuote(quote),
-                  if (post.getText().isNotEmpty) PostTileText(index),
+                  if (post.getText().isNotEmpty) PostTileText(post),
                   if (post.images.isNotEmpty) PostTileImages(post),
                 ].separator(const SizedBox(height: 8)),
               ),
@@ -171,14 +197,13 @@ class PostTile extends HookWidget {
 }
 
 class PostTileText extends HookWidget {
-  const PostTileText(this.index, {super.key});
+  const PostTileText(this.post, {super.key});
 
-  final int index;
+  final PostData post;
 
   @override
   Widget build(BuildContext context) {
     final posts = Modular.get<PostStore>();
-    final post = posts.pItems[index];
     final GestureRecognizer recognizer = useMemoized(
       () => TapGestureRecognizer()..onTap = () => posts.resync(post),
       [post.error.value],
@@ -222,15 +247,13 @@ class PostTileText extends HookWidget {
 }
 
 class PostTileHeadbar extends HookWidget {
-  const PostTileHeadbar(this.index, {super.key});
+  const PostTileHeadbar(this.post, {super.key});
 
-  final int index;
+  final PostData post;
 
   @override
   Widget build(BuildContext context) {
     final threads = Modular.get<ThreadStore>();
-    final posts = Modular.get<PostStore>();
-    final post = posts.pItems[index];
     final thread = threads.selected?.data;
     final link = thread == null
         ? ''

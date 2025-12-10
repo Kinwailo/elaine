@@ -134,9 +134,11 @@ class PostStore {
 
   int get selected => _selected;
   int _selected = 0;
-
   int get read => _read;
   int _read = 0;
+
+  ValueListenable<bool> get loading => _loading;
+  final _loading = ValueNotifier<bool>(false);
 
   final _map = <String, PostData>{};
 
@@ -153,22 +155,21 @@ class PostStore {
       refresh();
       return;
     }
+    reset();
 
     final threads = Modular.get<ThreadStore>();
     final thread = threads.selected;
     if (thread == null) return;
+    _read = threads.selected?.read.value ?? 0;
+
     final cloud = Modular.get<CloudService>();
     final post = await cloud.getPostByIndex(thread.data.msgid, index);
     if (post == null) return;
 
-    _read = threads.selected?.read.value ?? 0;
     _cursorStart = post.id;
     _reachStart = false;
-    _nItems.clear();
     _cursorEnd = post.id;
     _reachEnd = false;
-    _pItems.clear();
-    _map.clear();
 
     final data = _map.putIfAbsent(post.msgid, () => PostData(post));
     _selected = index;
@@ -176,19 +177,24 @@ class PostStore {
   }
 
   void refresh() {
+    reset();
     final threads = Modular.get<ThreadStore>();
     _read = threads.selected?.read.value ?? 0;
+    _reachEnd = false;
+  }
 
+  void reset() {
     _cursorStart = null;
     _reachStart = true;
     _nItems.clear();
     _cursorEnd = null;
-    _reachEnd = false;
+    _reachEnd = true;
     _pItems.clear();
     _map.clear();
   }
 
   Future<void> prependMore() async {
+    _loading.value = true;
     final threads = Modular.get<ThreadStore>();
     if (_reachStart || _cursorStart == null || threads.selected == null) return;
     final cloud = Modular.get<CloudService>();
@@ -208,13 +214,13 @@ class PostStore {
     final posts = items.map((e) => PostData(e)).toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var post in add) post.data.msgid: post});
-    _nItems.append(posts);
+    _nItems.append(posts.reversed);
 
     _setupPosts(posts);
     _sync(items);
   }
 
-  Future<void> loadMore() async {
+  Future<void> appendMore() async {
     final threads = Modular.get<ThreadStore>();
     if (_reachEnd || threads.selected == null) return;
     final cloud = Modular.get<CloudService>();
