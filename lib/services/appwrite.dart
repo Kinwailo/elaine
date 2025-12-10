@@ -170,18 +170,7 @@ class AppWrite extends CloudService {
   }
 
   @override
-  Future<Post?> getPost(String msgid) async {
-    var rows = await tablesDB.listRows(
-      databaseId: 'elaine',
-      tableId: 'posts',
-      queries: [Query.equal('msgid', msgid), Query.limit(1)],
-    );
-    if (rows.rows.isEmpty) return null;
-    return Post(rows.rows[0].data);
-  }
-
-  @override
-  Future<Post?> getPostByIndex(String thread, int index) async {
+  Future<Post?> getPost(String thread, int index) async {
     var rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
@@ -211,6 +200,29 @@ class AppWrite extends CloudService {
         if (cursor != null)
           reverse ? Query.cursorBefore(cursor) : Query.cursorAfter(cursor),
       ],
+    );
+    return rows.rows.map((e) => Post(e.data)).toList();
+  }
+
+  @override
+  Future<List<Post>> getPostsByMsgids(Iterable<String> msgids) async {
+    var rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'posts',
+      queries: [
+        Query.equal('msgid', msgids.toList()),
+        Query.limit(msgids.length),
+      ],
+    );
+    return rows.rows.map((e) => Post(e.data)).toList();
+  }
+
+  @override
+  Future<List<Post>> getPostsByRef(Iterable<String> ref) async {
+    var rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'posts',
+      queries: [Query.equal('ref', ref.toList())],
     );
     return rows.rows.map((e) => Post(e.data)).toList();
   }

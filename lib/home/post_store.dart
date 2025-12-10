@@ -132,10 +132,14 @@ class PostStore {
   bool get reachEnd => _reachEnd;
   var _reachEnd = true;
 
-  int get selected => _selected;
-  int _selected = 0;
+  PostData? get selected => _selected;
+  PostData? _selected;
+  int get index => _index;
+  int _index = 0;
   int get read => _read;
   int _read = 0;
+  bool get postMode => _postMode;
+  bool _postMode = false;
 
   ValueListenable<bool> get loading => _loading;
   final _loading = ValueNotifier<bool>(false);
@@ -150,7 +154,7 @@ class PostStore {
   Listenable get all => Listenable.merge(_map.values);
 
   Future<void> select(int index) async {
-    _selected = 0;
+    _index = 0;
     if (index == 0) {
       refresh();
       return;
@@ -163,17 +167,26 @@ class PostStore {
     _read = threads.selected?.read.value ?? 0;
 
     final cloud = Modular.get<CloudService>();
-    final post = await cloud.getPostByIndex(thread.data.msgid, index);
+    final post = await cloud.getPost(thread.data.msgid, index);
     if (post == null) return;
+    final data = _map.putIfAbsent(post.msgid, () => PostData(post));
+    _index = index;
+    _selected = data;
 
     _cursorStart = post.id;
     _reachStart = false;
     _cursorEnd = post.id;
     _reachEnd = false;
-
-    final data = _map.putIfAbsent(post.msgid, () => PostData(post));
-    _selected = index;
     _pItems.append([data]);
+
+    if (postMode) {
+      final items = await cloud.getPostsByMsgids(post.ref);
+      final posts = items.map((e) => PostData(e)).toList();
+      final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
+      _map.addAll({for (var post in add) post.data.msgid: post});
+      _reachStart = true;
+      _nItems.append(posts.reversed);
+    }
   }
 
   void refresh() {
@@ -193,6 +206,10 @@ class PostStore {
     _map.clear();
   }
 
+  void setPostMode(bool value) {
+    _postMode = value;
+  }
+
   Future<void> loadMore({bool reverse = false}) async {
     _loading.value = true;
     final threads = Modular.get<ThreadStore>();
@@ -200,12 +217,18 @@ class PostStore {
     if (pass || threads.selected == null) return;
 
     final cloud = Modular.get<CloudService>();
-    var items = await cloud.getPosts(
-      threads.selected!.data.msgid,
-      _itemsPreFetch,
-      cursor: reverse ? _cursorStart : _cursorEnd,
-      reverse: reverse,
-    );
+    final ref = selected == null
+        ? <String>[]
+        // : [...selected!.data.ref, selected!.data.msgid];
+        : [selected!.data.msgid];
+    final items = postMode
+        ? await cloud.getPostsByRef(ref)
+        : await cloud.getPosts(
+            threads.selected!.data.msgid,
+            _itemsPreFetch,
+            cursor: reverse ? _cursorStart : _cursorEnd,
+            reverse: reverse,
+          );
 
     if (reverse) {
       _reachStart = items.isEmpty || items.length < _itemsPreFetch;
@@ -252,7 +275,8 @@ class PostStore {
   Future<void> resync(PostData post) async {
     post.syncRetry();
     final cloud = Modular.get<CloudService>();
-    final data = await cloud.getPost(post.data.msgid);
+    final items = await cloud.getPostsByMsgids([post.data.msgid]);
+    final data = items.firstOrNull;
     if (data != null && data.text != null) {
       post.syncFrom(data);
     } else {
@@ -280,7 +304,8 @@ class PostStore {
     if (qMsgid == null) return;
     if (!_map.containsKey(qMsgid)) {
       final cloud = Modular.get<CloudService>();
-      final quote = await cloud.getPost(qMsgid);
+      final items = await cloud.getPostsByMsgids([qMsgid]);
+      final quote = items.firstOrNull;
       if (quote != null) _map[qMsgid] = PostData(quote);
     }
     if (!_map.containsKey(qMsgid)) return;

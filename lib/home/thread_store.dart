@@ -83,7 +83,7 @@ class ThreadStore {
   String? _cursorStart;
   String? _cursorEnd;
 
-  Future<void> select(String group, int number, int post) async {
+  Future<void> select(String group, int number, int index) async {
     final changed = selected?.data.number != number;
     if (changed) {
       var thread = nItems.value
@@ -100,17 +100,17 @@ class ThreadStore {
       _selected = data;
 
       if (_tile.value == null) {
-        _pItems.append([data]);
         _cursorStart = thread.id;
         _reachStart = false;
         _cursorEnd = thread.id;
         _reachEnd = false;
+        _pItems.append([data]);
       }
     }
 
     final posts = Modular.get<PostStore>();
-    if (changed || posts.selected != post) {
-      posts.select(post);
+    if (changed || posts.index != index) {
+      posts.select(index);
     }
   }
 

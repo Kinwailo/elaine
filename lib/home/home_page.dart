@@ -51,7 +51,7 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread',
               child: (_) {
-                select(r);
+                select(r, false);
                 return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
@@ -59,7 +59,7 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread/:post',
               child: (_) {
-                select(r);
+                select(r, false);
                 return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
@@ -67,7 +67,7 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread/post/:post',
               child: (_) {
-                select(r);
+                select(r, true);
                 return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
@@ -78,8 +78,10 @@ class HomeModule extends Module {
     );
   }
 
-  void select(RouteManager r) {
+  void select(RouteManager r, bool postMode) {
     final threads = Modular.get<ThreadStore>();
+    final posts = Modular.get<PostStore>();
+    posts.setPostMode(postMode);
     final group = r.args.params['group'];
     final thread = int.tryParse(r.args.params['thread'] ?? '');
     final post = int.tryParse(r.args.params['post'] ?? '');

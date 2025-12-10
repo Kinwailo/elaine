@@ -24,9 +24,7 @@ abstract class CloudService {
 
   Future<SyncPostsData> syncPosts(Iterable<Post> posts);
 
-  Future<Post?> getPost(String msgid);
-
-  Future<Post?> getPostByIndex(String thread, int index);
+  Future<Post?> getPost(String thread, int index);
 
   Future<List<Post>> getPosts(
     String msgid,
@@ -34,6 +32,10 @@ abstract class CloudService {
     String? cursor,
     bool reverse = false,
   });
+
+  Future<List<Post>> getPostsByMsgids(Iterable<String> msgids);
+
+  Future<List<Post>> getPostsByRef(Iterable<String> ref);
 
   Future<Uint8List> getFile(String id);
 }
