@@ -25,6 +25,7 @@ dependencies:
   super_sliver_list: ^0.4.1
   universal_html: ^2.3.0
   path: ^1.9.1
+  bit_array: ^2.3.0
 
 dev_dependencies:
   flutter_test:

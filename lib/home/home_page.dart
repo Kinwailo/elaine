@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:url_launcher/link.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
@@ -50,12 +51,7 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread',
               child: (_) {
-                final threads = Modular.get<ThreadStore>();
-                final group = r.args.params['group'];
-                final thread = int.tryParse(r.args.params['thread'] ?? '');
-                if (group != null && thread != null) {
-                  threads.select(group, thread, 0);
-                }
+                select(r);
                 return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
@@ -63,13 +59,15 @@ class HomeModule extends Module {
             ChildRoute(
               '/:thread/:post',
               child: (_) {
-                final threads = Modular.get<ThreadStore>();
-                final group = r.args.params['group'];
-                final thread = int.tryParse(r.args.params['thread']);
-                final post = int.tryParse(r.args.params['post']);
-                if (group != null && thread != null) {
-                  threads.select(group, thread, (post ?? 1) - 1);
-                }
+                select(r);
+                return const PostList(key: ValueKey('PostList'));
+              },
+              transition: TransitionType.noTransition,
+            ),
+            ChildRoute(
+              '/:thread/post/:post',
+              child: (_) {
+                select(r);
                 return const PostList(key: ValueKey('PostList'));
               },
               transition: TransitionType.noTransition,
@@ -78,6 +76,16 @@ class HomeModule extends Module {
         ),
       ],
     );
+  }
+
+  void select(RouteManager r) {
+    final threads = Modular.get<ThreadStore>();
+    final group = r.args.params['group'];
+    final thread = int.tryParse(r.args.params['thread'] ?? '');
+    final post = int.tryParse(r.args.params['post'] ?? '');
+    if (group != null && thread != null) {
+      threads.select(group, thread, (post ?? 1) - 1);
+    }
   }
 }
 
@@ -241,6 +249,39 @@ class ChipItem extends HookWidget {
           padding: EdgeInsets.all(4),
           child: Text(name, textAlign: TextAlign.center),
         ),
+      ),
+    );
+  }
+}
+
+class AppLink extends StatelessWidget {
+  const AppLink({
+    super.key,
+    required this.root,
+    required this.paths,
+    this.onTap,
+    this.child,
+  });
+
+  final String root;
+  final List<String> paths;
+  final void Function()? onTap;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final link = [root, ...paths].join('/');
+    return Link(
+      uri: Uri.parse('/$link'),
+      builder: (_, _) => InkWell(
+        onTap: () async {
+          Modular.to.pushNamedAndRemoveUntil(
+            '/$link',
+            ModalRoute.withName('/$root/'),
+          );
+          onTap?.call();
+        },
+        child: child,
       ),
     );
   }

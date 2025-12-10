@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 const uiGroup = '群組';
+const uiExpand = '展開';
+const uiCollapse = '收起';
 
 const emptyText = '無內文';
 const syncBodyText = '載入發文內容中…';

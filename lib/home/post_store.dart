@@ -193,52 +193,32 @@ class PostStore {
     _map.clear();
   }
 
-  Future<void> prependMore() async {
+  Future<void> loadMore({bool reverse = false}) async {
     _loading.value = true;
     final threads = Modular.get<ThreadStore>();
-    if (_reachStart || _cursorStart == null || threads.selected == null) return;
+    final pass = reverse ? _reachStart || _cursorStart == null : _reachEnd;
+    if (pass || threads.selected == null) return;
+
     final cloud = Modular.get<CloudService>();
     var items = await cloud.getPosts(
       threads.selected!.data.msgid,
       _itemsPreFetch,
-      cursor: _cursorStart,
-      reverse: true,
+      cursor: reverse ? _cursorStart : _cursorEnd,
+      reverse: reverse,
     );
-    _reachStart = items.isEmpty || items.length < _itemsPreFetch;
-    if (_reachStart) {
-      _cursorStart = null;
+
+    if (reverse) {
+      _reachStart = items.isEmpty || items.length < _itemsPreFetch;
+      _cursorStart = _reachStart ? null : items.first.id;
     } else {
-      _cursorStart = items.first.id;
+      _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
+      _cursorEnd = _reachEnd ? null : items.last.id;
     }
 
     final posts = items.map((e) => PostData(e)).toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var post in add) post.data.msgid: post});
-    _nItems.append(posts.reversed);
-
-    _setupPosts(posts);
-    _sync(items);
-  }
-
-  Future<void> appendMore() async {
-    final threads = Modular.get<ThreadStore>();
-    if (_reachEnd || threads.selected == null) return;
-    final cloud = Modular.get<CloudService>();
-    var items = await cloud.getPosts(
-      threads.selected!.data.msgid,
-      _itemsPreFetch,
-      cursor: _cursorEnd,
-    );
-    _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
-    if (_reachEnd) {
-      _cursorEnd = null;
-    } else {
-      _cursorEnd = items.last.id;
-    }
-    final posts = items.map((e) => PostData(e)).toList();
-    final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
-    _map.addAll({for (var post in add) post.data.msgid: post});
-    _pItems.append(posts);
+    reverse ? _nItems.append(posts.reversed) : _pItems.append(posts);
 
     _setupPosts(posts);
     _sync(items);

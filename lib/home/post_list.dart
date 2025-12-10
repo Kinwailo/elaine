@@ -4,12 +4,12 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
-import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
 import 'group_store.dart';
+import 'home_page.dart';
 import 'post_store.dart';
 import 'thread_store.dart';
 
@@ -52,7 +52,7 @@ class PostList extends HookWidget {
         child: CustomScrollView(
           center: centerKey,
           controller: controller,
-          physics: ClampingScrollPhysics(),
+          physics: AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
               padding: EdgeInsets.only(top: 2, right: 12),
@@ -108,7 +108,7 @@ class MorePosts extends HookWidget {
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          prepend ? posts.prependMore() : posts.appendMore();
+          posts.loadMore(reverse: prepend);
         }
       },
       child: Padding(
@@ -255,9 +255,9 @@ class PostTileHeadbar extends HookWidget {
   Widget build(BuildContext context) {
     final threads = Modular.get<ThreadStore>();
     final thread = threads.selected?.data;
-    final link = thread == null
-        ? ''
-        : '/${thread.group}/${thread.number}/${post.data.index + 1}';
+    final group = thread?.group ?? '';
+    final number = thread?.number ?? 0;
+    final index = post.data.index + 1;
     return Row(
       children: [
         ...<Widget>[
@@ -270,33 +270,63 @@ class PostTileHeadbar extends HookWidget {
             ),
           ),
           Spacer(),
-          if (post.data.total > 0)
-            Text('🗨️${post.data.total}', style: subTextStyle),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () => post.setOriginal(!post.original.value),
-            child: Tooltip(
-              message: '原文',
+          Tooltip(
+            message: '原文',
+            child: InkWell(
+              onTap: () => post.setOriginal(!post.original.value),
               child: Text('📃', style: subTextStyle),
             ),
           ),
-          if (thread == null)
-            Text('#${post.data.index + 1}', style: subTextStyle)
-          else
-            Link(
-              uri: Uri.parse(link),
-              builder: (_, _) => InkWell(
-                onTap: () async {
-                  Modular.to.pushNamedAndRemoveUntil(
-                    link,
-                    ModalRoute.withName('/${thread.group}/'),
-                  );
-                },
-                child: Text('#${post.data.index + 1}', style: subTextStyle),
+          if (post.data.total > 0 && thread != null)
+            AlignRightSizedBox(
+              width: 64,
+              child: AppLink(
+                root: group,
+                paths: ['$number', 'post', '$index'],
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      WidgetSpan(
+                        child: Tooltip(
+                          message: uiExpand,
+                          child: Icon(Icons.add_circle_outline, size: 16),
+                        ),
+                      ),
+                      TextSpan(
+                        text: '🗨️${post.data.total}',
+                        style: subTextStyle,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (thread != null)
+            AlignRightSizedBox(
+              width: 32,
+              child: AppLink(
+                root: group,
+                paths: ['$number', '$index'],
+                child: Text('#$index', style: subTextStyle),
               ),
             ),
         ].separator(const SizedBox(width: 8)),
       ],
+    );
+  }
+}
+
+class AlignRightSizedBox extends StatelessWidget {
+  const AlignRightSizedBox({super.key, this.width, this.child});
+
+  final double? width;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Align(alignment: AlignmentGeometry.centerRight, child: child),
     );
   }
 }

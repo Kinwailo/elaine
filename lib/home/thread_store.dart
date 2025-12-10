@@ -1,10 +1,13 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
-import 'package:elaine/services/data_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:bit_array/bit_array.dart';
 
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
+import '../services/data_store.dart';
 import '../services/models.dart';
 import 'group_store.dart';
 import 'post_store.dart';
@@ -15,6 +18,10 @@ class ThreadData {
   DateTime get latestRead => _latestRead;
   late DateTime _latestRead;
 
+  SelectedListenable<int, BitArray> get readArray =>
+      _readArray.select((e) => e.cardinality);
+  final _readArray = ValueNotifier<BitArray>(BitArray(1));
+
   Thread get data => _data;
   final Thread _data;
 
@@ -23,8 +30,14 @@ class ThreadData {
   ThreadData(Thread thread)
     : _data = thread,
       _dataValue = DataValue(thread.group, '${thread.number}') {
-    _read.value = _dataValue.get('read') ?? 0;
     _latestRead = parseDateTime(_dataValue.get('latestRead'));
+    _read.value = _dataValue.get('read') ?? 0;
+    final ra = _dataValue.get('readArray');
+    _readArray.value = BitArray(1);
+    if (ra != null && ra is String) {
+      final data = base64.decode(ra);
+      _readArray.value = BitArray.fromUint8List(data);
+    }
   }
 
   void markRead(int read) {
@@ -34,6 +47,15 @@ class ThreadData {
       _latestRead = DateTime.now();
       _dataValue.set('latestRead', _latestRead.toIso8601String());
     }
+  }
+
+  void markIndexRead(int index) {
+    if (index >= _readArray.value.length) _readArray.value.length = index + 1;
+    _readArray.value.setBit(index);
+    final data = base64.encode(_readArray.value.byteBuffer.asUint8List());
+    _dataValue.set('readArray', data);
+    _latestRead = DateTime.now();
+    _dataValue.set('latestRead', _latestRead.toIso8601String());
   }
 }
 
@@ -114,8 +136,10 @@ class ThreadStore {
     _map.clear();
   }
 
-  Future<void> prependMore() async {
-    if (_reachStart || _cursorStart == null) return;
+  Future<void> loadMore({bool reverse = false}) async {
+    final pass = reverse ? _reachStart || _cursorStart == null : _reachEnd;
+    if (pass) return;
+
     final groups = Modular.get<GroupStore>();
     final cloud = Modular.get<CloudService>();
     final order = ['date', 'latest', 'hot'];
@@ -123,43 +147,20 @@ class ThreadStore {
       groups.subscribed.map((e) => e.data.group),
       _itemsPreFetch,
       order,
-      cursor: _cursorStart,
-      reverse: true,
+      cursor: reverse ? _cursorStart : _cursorEnd,
+      reverse: reverse,
     );
-    _reachStart = items.isEmpty || items.length < _itemsPreFetch;
-    if (_reachStart) {
-      _cursorStart = null;
+    if (reverse) {
+      _reachStart = items.isEmpty || items.length < _itemsPreFetch;
+      _cursorStart = _reachStart ? null : items.first.id;
     } else {
-      _cursorStart = items.first.id;
+      _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
+      _cursorEnd = _reachEnd ? null : items.last.id;
     }
 
     final threads = items.map((e) => ThreadData(e)).toList();
     final add = threads.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var thread in add) thread.data.msgid: thread});
-    _nItems.append(threads.reversed);
-  }
-
-  Future<void> appendMore() async {
-    if (_reachEnd) return;
-    final groups = Modular.get<GroupStore>();
-    final cloud = Modular.get<CloudService>();
-    final order = ['date', 'latest', 'hot'];
-    final items = await cloud.getThreads(
-      groups.subscribed.map((e) => e.data.group),
-      _itemsPreFetch,
-      order,
-      cursor: _cursorEnd,
-    );
-    _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
-    if (_reachEnd) {
-      _cursorEnd = null;
-    } else {
-      _cursorEnd = items.last.id;
-    }
-
-    final threads = items.map((e) => ThreadData(e)).toList();
-    final add = threads.whereNot((e) => _map.containsKey(e.data.msgid));
-    _map.addAll({for (var thread in add) thread.data.msgid: thread});
-    _pItems.append(threads);
+    reverse ? _nItems.append(threads.reversed) : _pItems.append(threads);
   }
 }

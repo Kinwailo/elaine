@@ -4,12 +4,12 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
-import 'package:url_launcher/link.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
 import 'group_store.dart';
+import 'home_page.dart';
 import 'thread_store.dart';
 
 class ThreadList extends HookWidget {
@@ -43,7 +43,7 @@ class ThreadList extends HookWidget {
               child: CustomScrollView(
                 center: centerKey,
                 controller: controller,
-                physics: ClampingScrollPhysics(),
+                physics: AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.only(right: 12),
@@ -51,7 +51,7 @@ class ThreadList extends HookWidget {
                       itemCount: countBackward + extraBackward,
                       itemBuilder: (_, index) {
                         return index >= countBackward
-                            ? PrependMoreThreads(key: UniqueKey())
+                            ? MoreThreads(key: UniqueKey(), prepend: true)
                             : ThreadTile(
                                 key: ValueKey(threads.nItems[index]),
                                 index + 1,
@@ -67,7 +67,7 @@ class ThreadList extends HookWidget {
                       itemCount: countForward + extraForward,
                       itemBuilder: (_, index) {
                         return index >= countForward
-                            ? AppendMoreThreads(key: UniqueKey())
+                            ? MoreThreads(key: UniqueKey())
                             : ThreadTile(
                                 key: ValueKey(threads.pItems[index]),
                                 index,
@@ -204,8 +204,10 @@ class SyncStateBar extends HookWidget implements PreferredSizeWidget {
   }
 }
 
-class PrependMoreThreads extends HookWidget {
-  const PrependMoreThreads({super.key});
+class MoreThreads extends HookWidget {
+  const MoreThreads({super.key, this.prepend = false});
+
+  final bool prepend;
 
   @override
   Widget build(BuildContext context) {
@@ -216,27 +218,7 @@ class PrependMoreThreads extends HookWidget {
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          threads.prependMore();
-        }
-      },
-      child: LinearProgressIndicator(),
-    );
-  }
-}
-
-class AppendMoreThreads extends HookWidget {
-  const AppendMoreThreads({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final threads = Modular.get<ThreadStore>();
-    final loaded = useState(false);
-    return VisibilityDetector(
-      key: key!,
-      onVisibilityChanged: (info) {
-        if (info.visibleFraction > 0.1 && !loaded.value) {
-          loaded.value = true;
-          threads.appendMore();
+          threads.loadMore(reverse: prepend);
         }
       },
       child: LinearProgressIndicator(),
@@ -272,66 +254,58 @@ class ThreadTile extends HookWidget {
         thread.data.update.isAfter(lastRefresh);
     final unread = thread.data.total - thread.read.value;
     // final hot = (thread.hot * 100.0 / hotRef).round();
-    final link = '/${thread.data.group}/${thread.data.number}';
     useListenable(threads.tile);
     useListenable(thread.read);
-    return Link(
-      uri: Uri.parse(link),
-      builder: (_, _) => InkWell(
-        onTap: () async {
-          Modular.to.pushNamedAndRemoveUntil(
-            link,
-            ModalRoute.withName('/${thread.data.group}/'),
-          );
-          threads.updateTile(thread.data.number);
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            border: !newThread
-                ? null
-                : Border(
-                    left: BorderSide(
-                      color: newColor.darken(index % 2 * 10),
-                      width: 2,
-                      style: BorderStyle.solid,
-                    ),
+    return AppLink(
+      root: thread.data.group,
+      paths: ['${thread.data.number}'],
+      onTap: () => threads.updateTile(thread.data.number),
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          border: !newThread
+              ? null
+              : Border(
+                  left: BorderSide(
+                    color: newColor.darken(index % 2 * 10),
+                    width: 2,
+                    style: BorderStyle.solid,
                   ),
-          ),
-          child: Opacity(
-            opacity: unread == 0 ? 0.5 : 1.0,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(thread.data.sender, style: senderTextStyle),
-                      const SizedBox(width: 8),
-                      TooltipVisibility(
-                        visible: date.relative != date.format,
-                        child: Tooltip(
-                          message: date.format,
-                          child: Text(date.relative, style: subTextStyle),
-                        ),
+                ),
+        ),
+        child: Opacity(
+          opacity: unread == 0 ? 0.5 : 1.0,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(thread.data.sender, style: senderTextStyle),
+                    const SizedBox(width: 8),
+                    TooltipVisibility(
+                      visible: date.relative != date.format,
+                      child: Tooltip(
+                        message: date.format,
+                        child: Text(date.relative, style: subTextStyle),
                       ),
-                      Spacer(),
-                      // if (hot > 0) Text('🔥$hot', style: subTextStyle),
-                      const SizedBox(width: 16),
-                      Text('💬${thread.data.total}', style: subTextStyle),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Badge.count(
-                    count: unread,
-                    backgroundColor: newReply ? newColor : unreadColor,
-                    offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
-                    isLabelVisible: unread > 0 && unread != thread.data.total,
-                    child: Text(thread.data.subject, style: mainTextStyle),
-                  ),
-                ],
-              ),
+                    ),
+                    Spacer(),
+                    // if (hot > 0) Text('🔥$hot', style: subTextStyle),
+                    const SizedBox(width: 16),
+                    Text('💬${thread.data.total}', style: subTextStyle),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Badge.count(
+                  count: unread,
+                  backgroundColor: newReply ? newColor : unreadColor,
+                  offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
+                  isLabelVisible: unread > 0 && unread != thread.data.total,
+                  child: Text(thread.data.subject, style: mainTextStyle),
+                ),
+              ],
             ),
           ),
         ),
