@@ -146,6 +146,10 @@ class PostTile extends HookWidget {
             post.data.create.isAfter(lastRefresh));
     final isUnread = posts.read > 0 && post.data.index >= posts.read;
 
+    final color = posts.selected == post
+        ? colorScheme.secondaryContainer.withValues(alpha: 0.3)
+        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+
     useListenable(post);
     useListenable(post.quote.value);
     useValueChanged(post.read.value, (_, _) async {
@@ -165,7 +169,7 @@ class PostTile extends HookWidget {
         padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
         child: Container(
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: color,
             border: !isNew && !isUnread
                 ? null
                 : Border(
@@ -254,10 +258,16 @@ class PostTileHeadbar extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final threads = Modular.get<ThreadStore>();
+    final posts = Modular.get<PostStore>();
     final thread = threads.selected?.data;
     final group = thread?.group ?? '';
     final number = thread?.number ?? 0;
     final index = post.data.index + 1;
+    final selected = posts.selected?.data;
+    final showExpand =
+        posts.postMode &&
+        selected?.msgid != post.data.msgid &&
+        !(selected?.ref.contains(post.data.msgid) ?? false);
     return Row(
       children: [
         ...<Widget>[
@@ -277,39 +287,40 @@ class PostTileHeadbar extends HookWidget {
               child: Text('📃', style: subTextStyle),
             ),
           ),
-          if (post.data.total > 0 && thread != null)
-            AlignRightSizedBox(
-              width: 64,
-              child: AppLink(
-                root: group,
-                paths: ['$number', 'post', '$index'],
-                child: Text.rich(
-                  TextSpan(
-                    children: [
+          AlignRightSizedBox(
+            width: 64,
+            show: post.data.total > 0 && thread != null,
+            child: AppLink(
+              root: group,
+              paths: ['$number', 'post', '$index'],
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    if (showExpand)
                       WidgetSpan(
                         child: Tooltip(
                           message: uiExpand,
                           child: Icon(Icons.add_circle_outline, size: 16),
                         ),
                       ),
-                      TextSpan(
-                        text: '🗨️${post.data.total}',
-                        style: subTextStyle,
-                      ),
-                    ],
-                  ),
+                    TextSpan(
+                      text: '🗨️${post.data.total}',
+                      style: subTextStyle,
+                    ),
+                  ],
                 ),
               ),
             ),
-          if (thread != null)
-            AlignRightSizedBox(
-              width: 32,
-              child: AppLink(
-                root: group,
-                paths: ['$number', '$index'],
-                child: Text('#$index', style: subTextStyle),
-              ),
+          ),
+          AlignRightSizedBox(
+            width: 32,
+            show: thread != null,
+            child: AppLink(
+              root: group,
+              paths: ['$number', '$index'],
+              child: Text('#$index', style: subTextStyle),
             ),
+          ),
         ].separator(const SizedBox(width: 8)),
       ],
     );
@@ -317,16 +328,24 @@ class PostTileHeadbar extends HookWidget {
 }
 
 class AlignRightSizedBox extends StatelessWidget {
-  const AlignRightSizedBox({super.key, this.width, this.child});
+  const AlignRightSizedBox({
+    super.key,
+    this.width,
+    this.show = true,
+    this.child,
+  });
 
   final double? width;
+  final bool show;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: Align(alignment: AlignmentGeometry.centerRight, child: child),
+      child: !show
+          ? null
+          : Align(alignment: AlignmentGeometry.centerRight, child: child),
     );
   }
 }

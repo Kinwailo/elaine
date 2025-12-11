@@ -218,11 +218,15 @@ class AppWrite extends CloudService {
   }
 
   @override
-  Future<List<Post>> getPostsByRef(Iterable<String> ref) async {
+  Future<List<Post>> getPostsByQuote(
+    String quote,
+    int limit, {
+    String? cursor,
+  }) async {
     var rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
-      queries: [Query.equal('ref', ref.toList())],
+      queries: [Query.equal('quote', quote)],
     );
     return rows.rows.map((e) => Post(e.data)).toList();
   }

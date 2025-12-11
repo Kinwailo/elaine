@@ -35,7 +35,7 @@ abstract class CloudService {
 
   Future<List<Post>> getPostsByMsgids(Iterable<String> msgids);
 
-  Future<List<Post>> getPostsByRef(Iterable<String> ref);
+  Future<List<Post>> getPostsByQuote(String quote, int limit, {String? cursor});
 
   Future<Uint8List> getFile(String id);
 }

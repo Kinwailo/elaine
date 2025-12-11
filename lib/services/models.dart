@@ -62,6 +62,7 @@ class Post {
   final DateTime date;
   final int number;
   final String msgid;
+  final String quote;
   final List<String> ref;
   final DateTime create;
   final DateTime update;
@@ -79,6 +80,7 @@ class Post {
       date = parseDateTime(data['date']),
       number = (data['num'] ?? 0) as int,
       msgid = (data['msgid'] ?? '') as String,
+      quote = (data['quote'] ?? '') as String,
       ref = ((data['ref'] ?? []) as List).map((e) => e as String).toList(),
       create = parseDateTime(data[r'$createdAt']),
       update = parseDateTime(data[r'$updatedAt']);
@@ -96,6 +98,7 @@ class Post {
       date = post.date,
       number = post.number,
       msgid = post.msgid,
+      quote = post.quote,
       ref = post.ref,
       create = post.create,
       update = post.update;

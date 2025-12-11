@@ -80,13 +80,11 @@ class HomeModule extends Module {
 
   void select(RouteManager r, bool postMode) {
     final threads = Modular.get<ThreadStore>();
-    final posts = Modular.get<PostStore>();
-    posts.setPostMode(postMode);
     final group = r.args.params['group'];
     final thread = int.tryParse(r.args.params['thread'] ?? '');
     final post = int.tryParse(r.args.params['post'] ?? '');
     if (group != null && thread != null) {
-      threads.select(group, thread, (post ?? 1) - 1);
+      threads.select(group, thread, (post ?? 1) - 1, postMode);
     }
   }
 }
