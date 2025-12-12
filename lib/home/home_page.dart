@@ -5,7 +5,6 @@ import 'package:url_launcher/link.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
-import '../services/appwrite.dart';
 import '../services/cloud_service.dart';
 import 'group_store.dart';
 import 'post_store.dart';
@@ -16,7 +15,7 @@ import 'thread_store.dart';
 class HomeModule extends Module {
   @override
   void binds(i) {
-    i.addSingleton<CloudService>(AppWrite.new);
+    i.addSingleton(CloudService.new);
     i.addSingleton(GroupStore.new);
     i.addSingleton(ThreadStore.new);
     i.addSingleton(PostStore.new);

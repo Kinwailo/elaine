@@ -205,7 +205,6 @@ class PostStore {
     _reachEnd = false;
     _pItems.append([data]);
     _setupPosts([data]);
-    _sync([post]);
 
     if (postMode) {
       if (post.ref.isNotEmpty) {
@@ -275,9 +274,7 @@ class PostStore {
     if (!postMode.value || add.isNotEmpty) {
       _map.addAll({for (var post in add) post.data.msgid: post});
       reverse ? _nItems.append(posts.reversed) : _pItems.append(posts);
-
       _setupPosts(posts);
-      _sync(items);
     }
   }
 
@@ -291,9 +288,7 @@ class PostStore {
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var post in add) post.data.msgid: post});
     post.setChildren(posts);
-
     _setupPosts(posts);
-    _sync(items);
   }
 
   void _setupPosts(Iterable<PostData> posts) {
@@ -302,6 +297,7 @@ class PostStore {
       final qMsgid = _getQuote(post);
       if (_map.containsKey(qMsgid)) post.setQuote(_map[qMsgid]!);
     }
+    _sync(posts.map((e) => e.data));
   }
 
   Future<void> _sync(Iterable<Post> posts) async {
@@ -360,7 +356,6 @@ class PostStore {
         final data = PostData(quote);
         _map[qMsgid] = data;
         _setupPosts([data]);
-        _sync([quote]);
       }
     }
     if (!_map.containsKey(qMsgid)) return;
