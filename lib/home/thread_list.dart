@@ -10,6 +10,7 @@ import '../app/const.dart';
 import '../app/utils.dart';
 import 'group_store.dart';
 import 'home_page.dart';
+import 'post_store.dart';
 import 'thread_store.dart';
 
 class ThreadList extends HookWidget {
@@ -237,6 +238,7 @@ class ThreadTile extends HookWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final groups = Modular.get<GroupStore>();
     final threads = Modular.get<ThreadStore>();
+    final posts = Modular.get<PostStore>();
     final number = threads.getTile();
     final selected = thread.data.number == number;
     final color = selected
@@ -252,10 +254,14 @@ class ThreadTile extends HookWidget {
     final newReply =
         thread.data.latest.isAfter(lastRefresh) ||
         thread.data.update.isAfter(lastRefresh);
-    final unread = thread.data.total - thread.read.value;
+    final unread =
+        thread.data.total -
+        (posts.postMode.value ? thread.readArray.value : thread.read.value);
     // final hot = (thread.hot * 100.0 / hotRef).round();
     useListenable(threads.tile);
     useListenable(thread.read);
+    useListenable(thread.readArray);
+    useListenable(posts.postMode.postFrame);
     return AppLink(
       root: thread.data.group,
       paths: ['${thread.data.number}'],

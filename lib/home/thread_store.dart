@@ -18,9 +18,9 @@ class ThreadData {
   DateTime get latestRead => _latestRead;
   late DateTime _latestRead;
 
-  SelectedListenable<int, BitArray> get readArray =>
-      _readArray.select((e) => e.cardinality);
-  final _readArray = ValueNotifier<BitArray>(BitArray(1));
+  ValueListenable<int> get readArray => _readArrayCardinality;
+  final _readArrayCardinality = ValueNotifier<int>(0);
+  BitArray _readArray = BitArray(1);
 
   Thread get data => _data;
   final Thread _data;
@@ -33,11 +33,12 @@ class ThreadData {
     _latestRead = parseDateTime(_dataValue.get('latestRead'));
     _read.value = _dataValue.get('read') ?? 0;
     final ra = _dataValue.get('readArray');
-    _readArray.value = BitArray(1);
+    _readArray = BitArray(1);
     if (ra != null && ra is String) {
       final data = base64.decode(ra);
-      _readArray.value = BitArray.fromUint8List(data);
+      _readArray = BitArray.fromUint8List(data);
     }
+    _readArrayCardinality.value = _readArray.cardinality;
   }
 
   void markRead(int read) {
@@ -50,9 +51,10 @@ class ThreadData {
   }
 
   void markIndexRead(int index) {
-    if (index >= _readArray.value.length) _readArray.value.length = index + 1;
-    _readArray.value.setBit(index);
-    final data = base64.encode(_readArray.value.byteBuffer.asUint8List());
+    if (index >= _readArray.length) _readArray.length = index + 1;
+    _readArray.setBit(index);
+    _readArrayCardinality.value = _readArray.cardinality;
+    final data = base64.encode(_readArray.byteBuffer.asUint8List());
     _dataValue.set('readArray', data);
     _latestRead = DateTime.now();
     _dataValue.set('latestRead', _latestRead.toIso8601String());
@@ -118,7 +120,7 @@ class ThreadStore {
     }
 
     final posts = Modular.get<PostStore>();
-    if (changed || posts.index != index || posts.postMode != postMode) {
+    if (changed || posts.index != index || posts.postMode.value != postMode) {
       posts.select(index, postMode);
     }
   }

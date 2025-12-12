@@ -87,6 +87,28 @@ double estimateWrappedHeight(
   }).height;
 }
 
+extension ListenableExtension on Listenable {
+  Listenable get postFrame => PostFrameListenable(this);
+}
+
+class PostFrameListenable extends Listenable with ChangeNotifier {
+  PostFrameListenable(this.listenable) {
+    listenable.addListener(listener);
+  }
+
+  final Listenable listenable;
+
+  void listener() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    removeListener(listener);
+    super.dispose();
+  }
+}
+
 extension ValueListenableExtension<E> on ValueListenable<E> {
   SelectedListenable<T, E> select<T>(T Function(E) selector) =>
       SelectedListenable<T, E>(this, selector);

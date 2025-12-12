@@ -143,12 +143,13 @@ class PostTile extends HookWidget {
 
     final group = groups.get(threads.selected?.data.group ?? '');
     final lastRefresh = group?.lastRefresh ?? refDateTime;
+    final isUnread = posts.read > 0 && post.data.index >= posts.read;
     final isNew =
+        isUnread &&
         posts.read > 0 &&
         posts.read < (threads.selected?.data.total ?? 0) &&
         (post.data.date.isAfter(lastRefresh) ||
             post.data.create.isAfter(lastRefresh));
-    final isUnread = posts.read > 0 && post.data.index >= posts.read;
 
     final blend = post.level == 0
         ? Colors.transparent
@@ -163,7 +164,11 @@ class PostTile extends HookWidget {
     useListenable(post.quote.value);
     useValueChanged(post.read, (_, _) async {
       final threads = Modular.get<ThreadStore>();
-      return Future(() => threads.selected?.markRead(post.data.index + 1));
+      return Future(
+        () => posts.postMode.value
+            ? threads.selected?.markIndexRead(post.data.index)
+            : threads.selected?.markRead(post.data.index + 1),
+      );
     });
     return VisibilityDetector(
       key: key!,
@@ -206,23 +211,10 @@ class PostTile extends HookWidget {
             if (post.folded)
               Padding(
                 padding: const EdgeInsets.all(4),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: unreadColor,
-                        width: 1,
-                        style: BorderStyle.solid,
-                      ),
-                    ),
-                  ),
-                  child: Column(
-                    children: <Widget>[
-                      ...post.children.map(
-                        (e) => PostTile(key: ValueKey(e), e),
-                      ),
-                    ].separator(const SizedBox(height: 4)),
-                  ),
+                child: Column(
+                  children: <Widget>[
+                    ...post.children.map((e) => PostTile(key: ValueKey(e), e)),
+                  ].separator(const SizedBox(height: 4)),
                 ),
               ),
           ],
@@ -347,7 +339,7 @@ class PostTileQuoteState extends HookWidget {
     final posts = Modular.get<PostStore>();
     final selected = posts.selected?.data;
     final showExpand =
-        posts.postMode &&
+        posts.postMode.value &&
         selected?.msgid != post.data.msgid &&
         !(selected?.ref.contains(post.data.msgid) ?? false);
     return Text.rich(

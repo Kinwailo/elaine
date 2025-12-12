@@ -162,8 +162,9 @@ class PostStore {
   int _index = 0;
   int get read => _read;
   int _read = 0;
-  bool get postMode => _postMode;
-  bool _postMode = false;
+
+  ValueListenable<bool> get postMode => _postMode;
+  final _postMode = ValueNotifier<bool>(false);
 
   ValueListenable<bool> get loading => _loading;
   final _loading = ValueNotifier<bool>(false);
@@ -179,7 +180,7 @@ class PostStore {
 
   Future<void> select(int index, bool postMode) async {
     _index = 0;
-    _postMode = postMode;
+    _postMode.value = postMode;
     if (!postMode && index == 0) {
       refresh();
       return;
@@ -235,7 +236,7 @@ class PostStore {
   }
 
   void setPostMode(bool value) {
-    _postMode = value;
+    _postMode.value = value;
   }
 
   Future<void> loadMore({bool reverse = false}) async {
@@ -243,10 +244,10 @@ class PostStore {
     final threads = Modular.get<ThreadStore>();
     final pass = reverse ? _reachStart || _cursorStart == null : _reachEnd;
     if (pass || threads.selected == null) return;
-    if (postMode && selected == null) return;
+    if (postMode.value && selected == null) return;
 
     final cloud = Modular.get<CloudService>();
-    final items = postMode
+    final items = postMode.value
         ? await cloud.getPostsByQuote(
             selected!.data.msgid,
             _itemsPreFetch,
@@ -259,7 +260,7 @@ class PostStore {
             reverse: reverse,
           );
 
-    if (reverse && !postMode) {
+    if (reverse && !postMode.value) {
       _reachStart = items.isEmpty || items.length < _itemsPreFetch;
       _cursorStart = _reachStart ? null : items.first.id;
     } else {
@@ -269,7 +270,7 @@ class PostStore {
 
     final posts = items.map((e) => PostData(e)).toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
-    if (!postMode || add.isNotEmpty) {
+    if (!postMode.value || add.isNotEmpty) {
       _map.addAll({for (var post in add) post.data.msgid: post});
       reverse ? _nItems.append(posts.reversed) : _pItems.append(posts);
 
@@ -332,7 +333,7 @@ class PostStore {
 
   String? _getQuote(PostData post) {
     final data = post.data;
-    if (data.ref.isEmpty || postMode) return null;
+    if (data.ref.isEmpty || postMode.value) return null;
 
     String previous = '';
     for (var e in [...pItems.value]) {
@@ -345,7 +346,7 @@ class PostStore {
   }
 
   Future<void> loadQuote(PostData post) async {
-    if (postMode) return;
+    if (postMode.value) return;
     if (post.quote.value != null) return;
     final qMsgid = _getQuote(post);
     if (qMsgid == null) return;
