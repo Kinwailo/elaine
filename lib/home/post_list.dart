@@ -1,3 +1,4 @@
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -55,9 +56,10 @@ class PostList extends HookWidget {
           physics: AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: EdgeInsets.only(top: 2, right: 12),
-              sliver: SuperSliverList.builder(
+              padding: EdgeInsets.only(top: 2, left: 4, right: 12 + 4),
+              sliver: SuperSliverList.separated(
                 itemCount: countBackward + extraBackward,
+                separatorBuilder: (_, _) => SizedBox(height: 4),
                 itemBuilder: (_, index) {
                   return index >= countBackward
                       ? MorePosts(key: UniqueKey(), prepend: true)
@@ -71,12 +73,14 @@ class PostList extends HookWidget {
             SliverPadding(
               key: centerKey,
               padding: EdgeInsets.only(
-                right: 12,
+                left: 4,
+                right: 12 + 4,
                 bottom: 2,
                 top: countBackward == 0 && !posts.loading.value ? 2 : 0,
               ),
-              sliver: SuperSliverList.builder(
+              sliver: SuperSliverList.separated(
                 itemCount: countForward + extraForward,
+                separatorBuilder: (_, _) => SizedBox(height: 4),
                 itemBuilder: (_, index) {
                   return index >= countForward
                       ? MorePosts(key: UniqueKey())
@@ -146,13 +150,18 @@ class PostTile extends HookWidget {
             post.data.create.isAfter(lastRefresh));
     final isUnread = posts.read > 0 && post.data.index >= posts.read;
 
+    final blend = post.level == 0
+        ? Colors.transparent
+        : Colors.primaries[post.level * 2 % Colors.primaries.length];
     final color = posts.selected == post
-        ? colorScheme.secondaryContainer.withValues(alpha: 0.3)
-        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+        ? colorScheme.secondaryContainer.withValues(alpha: 0.3).blend(blend)
+        : colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.5)
+              .blend(blend);
 
     useListenable(post);
     useListenable(post.quote.value);
-    useValueChanged(post.read.value, (_, _) async {
+    useValueChanged(post.read, (_, _) async {
       final threads = Modular.get<ThreadStore>();
       return Future(() => threads.selected?.markRead(post.data.index + 1));
     });
@@ -165,35 +174,58 @@ class PostTile extends HookWidget {
           post.setVisible(false);
         }
       },
-      child: Padding(
-        padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            border: !isNew && !isUnread
-                ? null
-                : Border(
-                    left: BorderSide(
-                      color: isNew ? newColor : unreadColor,
-                      width: 2,
-                      style: BorderStyle.solid,
-                    ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          border: !isNew && !isUnread
+              ? null
+              : Border(
+                  left: BorderSide(
+                    color: isNew ? newColor : unreadColor,
+                    width: 2,
+                    style: BorderStyle.solid,
                   ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SelectionArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  PostTileHeadbar(post),
-                  if (quote != null) PostTileQuote(quote),
-                  if (post.getText().isNotEmpty) PostTileText(post),
-                  if (post.images.isNotEmpty) PostTileImages(post),
-                ].separator(const SizedBox(height: 8)),
+                ),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SelectionArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    PostTileHeadbar(post),
+                    if (quote != null) PostTileQuote(quote),
+                    if (post.getText().isNotEmpty) PostTileText(post),
+                    if (post.images.isNotEmpty) PostTileImages(post),
+                  ].separator(const SizedBox(height: 8)),
+                ),
               ),
             ),
-          ),
+            if (post.folded)
+              Padding(
+                padding: const EdgeInsets.all(4),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(
+                        color: unreadColor,
+                        width: 1,
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      ...post.children.map(
+                        (e) => PostTile(key: ValueKey(e), e),
+                      ),
+                    ].separator(const SizedBox(height: 4)),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -258,16 +290,10 @@ class PostTileHeadbar extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final threads = Modular.get<ThreadStore>();
-    final posts = Modular.get<PostStore>();
     final thread = threads.selected?.data;
     final group = thread?.group ?? '';
     final number = thread?.number ?? 0;
     final index = post.data.index + 1;
-    final selected = posts.selected?.data;
-    final showExpand =
-        posts.postMode &&
-        selected?.msgid != post.data.msgid &&
-        !(selected?.ref.contains(post.data.msgid) ?? false);
     return Row(
       children: [
         ...<Widget>[
@@ -283,7 +309,7 @@ class PostTileHeadbar extends HookWidget {
           Tooltip(
             message: '原文',
             child: InkWell(
-              onTap: () => post.setOriginal(!post.original.value),
+              onTap: () => post.toggleOriginal(),
               child: Text('📃', style: subTextStyle),
             ),
           ),
@@ -293,23 +319,7 @@ class PostTileHeadbar extends HookWidget {
             child: AppLink(
               root: group,
               paths: ['$number', 'post', '$index'],
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    if (showExpand)
-                      WidgetSpan(
-                        child: Tooltip(
-                          message: uiExpand,
-                          child: Icon(Icons.add_circle_outline, size: 16),
-                        ),
-                      ),
-                    TextSpan(
-                      text: '🗨️${post.data.total}',
-                      style: subTextStyle,
-                    ),
-                  ],
-                ),
-              ),
+              child: PostTileQuoteState(post),
             ),
           ),
           AlignRightSizedBox(
@@ -323,6 +333,44 @@ class PostTileHeadbar extends HookWidget {
           ),
         ].separator(const SizedBox(width: 8)),
       ],
+    );
+  }
+}
+
+class PostTileQuoteState extends HookWidget {
+  const PostTileQuoteState(this.post, {super.key});
+
+  final PostData post;
+
+  @override
+  Widget build(BuildContext context) {
+    final posts = Modular.get<PostStore>();
+    final selected = posts.selected?.data;
+    final showExpand =
+        posts.postMode &&
+        selected?.msgid != post.data.msgid &&
+        !(selected?.ref.contains(post.data.msgid) ?? false);
+    return Text.rich(
+      TextSpan(
+        children: [
+          if (showExpand)
+            WidgetSpan(
+              child: Tooltip(
+                message: uiExpand,
+                child: InkWell(
+                  onTap: () => posts.toggleExpand(post),
+                  child: Icon(
+                    post.folded
+                        ? Icons.remove_circle_outline
+                        : Icons.add_circle_outline,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ),
+          TextSpan(text: '🗨️${post.data.total}', style: subTextStyle),
+        ],
+      ),
     );
   }
 }

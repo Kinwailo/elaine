@@ -17,6 +17,9 @@ import 'thread_store.dart';
 typedef SyncListenable = SelectedListenable<bool, bool?>;
 
 class PostData extends ChangeNotifier {
+  Post get data => _data;
+  Post _data;
+
   SyncListenable get synced => _sync.select((e) => e == true);
   SyncListenable get syncing => _sync.select((e) => e == false);
   SyncListenable get error => _sync.select((e) => e == null);
@@ -28,14 +31,20 @@ class PostData extends ChangeNotifier {
   Iterable<ValueNotifier<ImageData?>> get images => _images.values;
   Map<String, ValueNotifier<ImageData?>> _images = {};
 
-  ValueListenable<bool> get original => _original;
-  final _original = ValueNotifier<bool>(false);
+  bool get original => _original;
+  bool _original = false;
 
-  ValueListenable<bool> get read => _read;
-  final _read = ValueNotifier<bool>(false);
+  bool get read => _read;
+  bool _read = false;
 
-  Post get data => _data;
-  Post _data;
+  bool get folded => _folded;
+  bool _folded = false;
+
+  int get level => _level;
+  int _level = 0;
+
+  List<PostData> get children => _children;
+  List<PostData> _children = [];
 
   String? _text;
   bool _visible = false;
@@ -86,14 +95,14 @@ class PostData extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setOriginal(bool value) {
-    _original.value = value;
+  void toggleOriginal() {
+    _original = !_original;
     notifyListeners();
   }
 
   String getText() {
     final text = (_text ?? data.text ?? '');
-    final strip = original.value ? text : text.stripAll;
+    final strip = original ? text : text.stripAll;
     return switch (_sync.value) {
       null => syncTimeoutText,
       false => syncBodyText,
@@ -107,10 +116,25 @@ class PostData extends ChangeNotifier {
     _visibleTimer = Timer(0.5.seconds, () {
       _visible = v;
       if (_visible && synced.value) {
-        _read.value = true;
+        _read = true;
         notifyListeners();
       }
     });
+  }
+
+  void toggleFold() {
+    _folded = !_folded;
+    notifyListeners();
+  }
+
+  void setLevel(int level) {
+    _level = level;
+    notifyListeners();
+  }
+
+  void setChildren(List<PostData> list) {
+    _children = list;
+    notifyListeners();
   }
 }
 
@@ -180,13 +204,16 @@ class PostStore {
     _reachEnd = false;
     _pItems.append([data]);
 
-    if (postMode && post.ref.isNotEmpty) {
-      final items = await cloud.getPostsByMsgids(post.ref);
-      final posts = items.map((e) => PostData(e)).toList();
-      final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
-      _map.addAll({for (var post in add) post.data.msgid: post});
+    if (postMode) {
+      if (post.ref.isNotEmpty) {
+        final items = await cloud.getPostsByMsgids(post.ref);
+        final posts = items.map((e) => PostData(e)).toList();
+        final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
+        _map.addAll({for (var post in add) post.data.msgid: post});
+        _nItems.append(posts.reversed);
+      }
+      _cursorStart = null;
       _reachStart = true;
-      _nItems.append(posts.reversed);
     }
   }
 
@@ -220,7 +247,11 @@ class PostStore {
 
     final cloud = Modular.get<CloudService>();
     final items = postMode
-        ? await cloud.getPostsByQuote(selected!.data.msgid, _itemsPreFetch)
+        ? await cloud.getPostsByQuote(
+            selected!.data.msgid,
+            _itemsPreFetch,
+            cursor: _cursorEnd,
+          )
         : await cloud.getPosts(
             threads.selected!.data.msgid,
             _itemsPreFetch,
@@ -228,7 +259,7 @@ class PostStore {
             reverse: reverse,
           );
 
-    if (reverse) {
+    if (reverse && !postMode) {
       _reachStart = items.isEmpty || items.length < _itemsPreFetch;
       _cursorStart = _reachStart ? null : items.first.id;
     } else {
@@ -245,6 +276,21 @@ class PostStore {
       _setupPosts(posts);
       _sync(items);
     }
+  }
+
+  Future<void> toggleExpand(PostData post) async {
+    post.toggleFold();
+    final cloud = Modular.get<CloudService>();
+    final items = await cloud.getPostsByQuote(post.data.msgid, _itemsPreFetch);
+    final posts = items
+        .map((e) => PostData(e)..setLevel(post.level + 1))
+        .toList();
+    final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
+    _map.addAll({for (var post in add) post.data.msgid: post});
+    post.setChildren(posts);
+
+    _setupPosts(posts);
+    _sync(items);
   }
 
   void _setupPosts(Iterable<PostData> posts) {

@@ -226,7 +226,12 @@ class AppWrite extends CloudService {
     var rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
-      queries: [Query.equal('quote', quote)],
+      queries: [
+        Query.equal('quote', quote),
+        Query.limit(limit),
+        Query.orderAsc('index'),
+        if (cursor != null) Query.cursorAfter(cursor),
+      ],
     );
     return rows.rows.map((e) => Post(e.data)).toList();
   }
