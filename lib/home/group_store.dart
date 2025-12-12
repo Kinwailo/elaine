@@ -32,6 +32,11 @@ class GroupData {
     _latestRefresh = DateTime.now();
     _dataValue.set('latestRefresh', _latestRefresh.toIso8601String());
   }
+
+  void updateLatest() {
+    _latestRefresh = DateTime.now();
+    _dataValue.set('latestRefresh', _latestRefresh.toIso8601String());
+  }
 }
 
 class GroupStore {
@@ -53,6 +58,9 @@ class GroupStore {
 
   ValueListenable<int> get syncTotal => _syncTotal;
   final _syncTotal = ValueNotifier<int>(0);
+
+  ValueListenable<int> get syncNew => _syncNew;
+  final _syncNew = ValueNotifier<int>(0);
 
   GroupData? get(String group) {
     return _map[group];
@@ -80,12 +88,18 @@ class GroupStore {
   }
 
   Future<void> refresh() async {
-    void update(GroupData g) => g.update();
+    void update(GroupData g) =>
+        syncNew.value > 0 ? g.updateLatest() : g.update();
     subscribed.forEach(update);
 
     _refreshing.value = true;
     final threads = Modular.get<ThreadStore>();
     threads.refresh();
+    if (syncNew.value > 0) {
+      _syncNew.value = 0;
+      _refreshing.value = false;
+      return;
+    }
 
     final cloud = Modular.get<CloudService>();
     final groups = await cloud.getGroups(
@@ -115,6 +129,7 @@ class GroupStore {
     if (sync.isNotEmpty) {
       final result = await cloud.syncThreads(sync);
       _syncTotal.value = result ? 0 : -1;
+      if (result) _syncNew.value = total;
     }
   }
 }

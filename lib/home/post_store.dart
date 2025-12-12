@@ -204,6 +204,8 @@ class PostStore {
     _cursorEnd = post.id;
     _reachEnd = false;
     _pItems.append([data]);
+    _setupPosts([data]);
+    _sync([post]);
 
     if (postMode) {
       if (post.ref.isNotEmpty) {
@@ -354,7 +356,12 @@ class PostStore {
       final cloud = Modular.get<CloudService>();
       final items = await cloud.getPostsByMsgids([qMsgid]);
       final quote = items.firstOrNull;
-      if (quote != null) _map[qMsgid] = PostData(quote);
+      if (quote != null) {
+        final data = PostData(quote);
+        _map[qMsgid] = data;
+        _setupPosts([data]);
+        _sync([quote]);
+      }
     }
     if (!_map.containsKey(qMsgid)) return;
     post.setQuote(_map[qMsgid]!);

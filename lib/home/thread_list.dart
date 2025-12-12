@@ -104,7 +104,9 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final groups = Modular.get<GroupStore>();
     final refreshing = groups.refreshing.value;
+    final syncNew = groups.syncNew.value;
     useListenable(groups.refreshing);
+    useListenable(groups.syncNew);
     return AppBar(
       toolbarHeight: kToolbarHeight - 12,
       title: Text('', style: mainTextStyle),
@@ -122,19 +124,29 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
             ),
           ),
         ),
-        IconButton(
-          onPressed: () {
-            groups.refresh();
-          },
-          icon: refreshing
-              ? Icon(Icons.refresh)
-                    .animate(onPlay: (anim) => anim.repeat())
-                    .rotate(duration: 1.seconds)
-              : Icon(Icons.refresh),
-          padding: EdgeInsetsGeometry.all(0),
-          style: IconButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0),
+        Badge.count(
+          count: syncNew,
+          backgroundColor: newColor,
+          isLabelVisible: syncNew > 0,
+          offset: Offset.fromDirection(
+            180 / 180 * 3.1415,
+            '$syncNew'.length * 4,
+          ),
+          alignment: AlignmentGeometry.topRight,
+          child: IconButton(
+            onPressed: () {
+              groups.refresh();
+            },
+            icon: refreshing
+                ? Icon(Icons.refresh)
+                      .animate(onPlay: (anim) => anim.repeat())
+                      .rotate(duration: 1.seconds)
+                : Icon(Icons.refresh),
+            padding: EdgeInsetsGeometry.all(0),
+            style: IconButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
             ),
           ),
         ),
@@ -264,7 +276,10 @@ class ThreadTile extends HookWidget {
     useListenable(posts.postMode.postFrame);
     return AppLink(
       root: thread.data.group,
-      paths: ['${thread.data.number}'],
+      paths: [
+        '${thread.data.number}',
+        if (thread.read.value > 1) '${thread.read.value}',
+      ],
       onTap: () => threads.updateTile(thread.data.number),
       child: Container(
         decoration: BoxDecoration(
