@@ -36,9 +36,7 @@ class CloudService {
               Query.limit(groups.length),
             ],
           );
-    return rows.rows.isEmpty
-        ? []
-        : rows.rows.map((e) => Group(e.data)).toList();
+    return rows.rows.map((e) => Group(e.data)).toList();
   }
 
   Future<Map<String, List<int>>> checkGroups(Iterable<String> groups) async {

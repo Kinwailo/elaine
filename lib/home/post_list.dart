@@ -29,7 +29,6 @@ class PostList extends HookWidget {
     final controller = useScrollController();
     useListenable(posts.nItems);
     useListenable(posts.pItems);
-    useListenable(posts.loading);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: kToolbarHeight - 12,
@@ -56,7 +55,12 @@ class PostList extends HookWidget {
           physics: AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: EdgeInsets.only(top: 2, left: 4, right: 12 + 4),
+              padding: EdgeInsets.only(
+                top: 4,
+                bottom: 2,
+                left: 4,
+                right: 12 + 4,
+              ),
               sliver: SuperSliverList.separated(
                 itemCount: countBackward + extraBackward,
                 separatorBuilder: (_, _) => SizedBox(height: 4),
@@ -73,10 +77,10 @@ class PostList extends HookWidget {
             SliverPadding(
               key: centerKey,
               padding: EdgeInsets.only(
+                top: 2,
+                bottom: 4,
                 left: 4,
                 right: 12 + 4,
-                bottom: 2,
-                top: countBackward == 0 && !posts.loading.value ? 2 : 0,
               ),
               sliver: SuperSliverList.separated(
                 itemCount: countForward + extraForward,
@@ -115,10 +119,7 @@ class MorePosts extends HookWidget {
           posts.loadMore(reverse: prepend);
         }
       },
-      child: Padding(
-        padding: const EdgeInsets.only(left: 4, top: 2, right: 4, bottom: 2),
-        child: LinearProgressIndicator(),
-      ),
+      child: LinearProgressIndicator(),
     );
   }
 }
@@ -213,6 +214,7 @@ class PostTile extends HookWidget {
                 padding: const EdgeInsets.all(4),
                 child: Column(
                   children: <Widget>[
+                    if (post.loading) LinearProgressIndicator(),
                     ...post.children.map((e) => PostTile(key: ValueKey(e), e)),
                   ].separator(const SizedBox(height: 4)),
                 ),
@@ -311,7 +313,7 @@ class PostTileHeadbar extends HookWidget {
             child: AppLink(
               root: group,
               paths: ['$number', 'post', '$index'],
-              child: PostTileQuoteState(post),
+              child: PostTileReplyState(post),
             ),
           ),
           AlignRightSizedBox(
@@ -329,8 +331,8 @@ class PostTileHeadbar extends HookWidget {
   }
 }
 
-class PostTileQuoteState extends HookWidget {
-  const PostTileQuoteState(this.post, {super.key});
+class PostTileReplyState extends HookWidget {
+  const PostTileReplyState(this.post, {super.key});
 
   final PostData post;
 

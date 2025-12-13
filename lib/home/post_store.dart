@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
@@ -45,6 +46,9 @@ class PostData extends ChangeNotifier {
 
   List<PostData> get children => _children;
   List<PostData> _children = [];
+
+  bool get loading => _loading;
+  bool _loading = false;
 
   String? _text;
   bool _visible = false;
@@ -97,6 +101,11 @@ class PostData extends ChangeNotifier {
 
   void toggleOriginal() {
     _original = !_original;
+    notifyListeners();
+  }
+
+  void toggleLoading() {
+    _loading = !_loading;
     notifyListeners();
   }
 
@@ -166,9 +175,6 @@ class PostStore {
   ValueListenable<bool> get postMode => _postMode;
   final _postMode = ValueNotifier<bool>(false);
 
-  ValueListenable<bool> get loading => _loading;
-  final _loading = ValueNotifier<bool>(false);
-
   final _map = <String, PostData>{};
 
   static const _itemsPreFetch = 25;
@@ -207,15 +213,8 @@ class PostStore {
     _setupPosts([data]);
 
     if (postMode) {
-      if (post.ref.isNotEmpty) {
-        final items = await cloud.getPostsByMsgids(post.ref);
-        final posts = items.map((e) => PostData(e)).toList();
-        final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
-        _map.addAll({for (var post in add) post.data.msgid: post});
-        _nItems.append(posts.reversed);
-      }
-      _cursorStart = null;
-      _reachStart = true;
+      _cursorStart = post.ref.lastOrNull;
+      _reachStart = post.ref.isEmpty;
     }
   }
 
@@ -241,44 +240,58 @@ class PostStore {
   }
 
   Future<void> loadMore({bool reverse = false}) async {
-    _loading.value = true;
-    final threads = Modular.get<ThreadStore>();
-    final pass = reverse ? _reachStart || _cursorStart == null : _reachEnd;
-    if (pass || threads.selected == null) return;
-    if (postMode.value && selected == null) return;
+    if (reverse ? _reachStart || _cursorStart == null : _reachEnd) return;
 
     final cloud = Modular.get<CloudService>();
-    final items = postMode.value
-        ? await cloud.getPostsByQuote(
-            selected!.data.msgid,
-            _itemsPreFetch,
-            cursor: _cursorEnd,
-          )
-        : await cloud.getPosts(
-            threads.selected!.data.msgid,
-            _itemsPreFetch,
-            cursor: reverse ? _cursorStart : _cursorEnd,
-            reverse: reverse,
-          );
+    final threads = Modular.get<ThreadStore>();
 
-    if (reverse && !postMode.value) {
-      _reachStart = items.isEmpty || items.length < _itemsPreFetch;
-      _cursorStart = _reachStart ? null : items.first.id;
+    late List<Post> items;
+    if (postMode.value) {
+      if (selected == null) return;
+      if (reverse) {
+        final end = selected!.data.ref.length - nItems.length;
+        final start = max(0, end - _itemsPreFetch);
+        final ref = selected!.data.ref.slice(start, end);
+        items = await cloud.getPostsByMsgids(ref);
+        _reachStart = nItems.length + items.length >= selected!.data.ref.length;
+        _cursorStart = _reachStart ? null : items.last.id;
+      } else {
+        items = await cloud.getPostsByQuote(
+          selected!.data.msgid,
+          _itemsPreFetch,
+          cursor: _cursorEnd,
+        );
+        _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
+        _cursorEnd = _reachEnd ? null : items.last.id;
+      }
     } else {
-      _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
-      _cursorEnd = _reachEnd ? null : items.last.id;
+      if (threads.selected == null) return;
+      items = await cloud.getPosts(
+        threads.selected!.data.msgid,
+        _itemsPreFetch,
+        cursor: reverse ? _cursorStart : _cursorEnd,
+        reverse: reverse,
+      );
+      if (reverse) {
+        _reachStart = items.isEmpty || items.length < _itemsPreFetch;
+        _cursorStart = _reachStart ? null : items.first.id;
+      } else {
+        _reachEnd = items.isEmpty || items.length < _itemsPreFetch;
+        _cursorEnd = _reachEnd ? null : items.last.id;
+      }
     }
 
     final posts = items.map((e) => PostData(e)).toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
-    if (!postMode.value || add.isNotEmpty) {
-      _map.addAll({for (var post in add) post.data.msgid: post});
-      reverse ? _nItems.append(posts.reversed) : _pItems.append(posts);
-      _setupPosts(posts);
-    }
+    // if (!postMode.value || add.isNotEmpty) {
+    _map.addAll({for (var post in add) post.data.msgid: post});
+    reverse ? _nItems.append(posts.reversed) : _pItems.append(posts);
+    _setupPosts(posts);
+    // }
   }
 
   Future<void> toggleExpand(PostData post) async {
+    post.toggleLoading();
     post.toggleFold();
     final cloud = Modular.get<CloudService>();
     final items = await cloud.getPostsByQuote(post.data.msgid, _itemsPreFetch);
@@ -289,6 +302,7 @@ class PostStore {
     _map.addAll({for (var post in add) post.data.msgid: post});
     post.setChildren(posts);
     _setupPosts(posts);
+    post.toggleLoading();
   }
 
   void _setupPosts(Iterable<PostData> posts) {
