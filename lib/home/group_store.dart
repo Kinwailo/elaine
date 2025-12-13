@@ -1,13 +1,13 @@
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:elaine/services/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import '../services/data_store.dart';
+import '../services/models.dart';
 import 'thread_store.dart';
 
 const String defaultGroup = 'general.chat';
@@ -21,7 +21,12 @@ class GroupData {
 
   final DataValue _dataValue;
 
-  GroupData(this.data) : _dataValue = DataValue(data.group, 'info') {
+  int get number => _number;
+  int _number = 0;
+
+  GroupData(this.data)
+    : _dataValue = DataValue(data.group, 'info'),
+      _number = data.number {
     _lastRefresh = parseDateTime(_dataValue.get('lastRefresh'));
     _latestRefresh = parseDateTime(_dataValue.get('latestRefresh'));
   }
@@ -69,7 +74,7 @@ class GroupStore {
   Future<void> select(String? group) async {
     if (items.isEmpty) {
       final cloud = Modular.get<CloudService>();
-      final groups = (await cloud.getGroups())
+      final groups = (await cloud.getAllGroup())
           .map((e) => GroupData(e))
           .toList();
       if (items.isEmpty) {
@@ -88,9 +93,13 @@ class GroupStore {
   }
 
   Future<void> refresh() async {
-    void update(GroupData g) =>
-        syncNew.value > 0 ? g.updateLatest() : g.update();
-    subscribed.forEach(update);
+    final cloud = Modular.get<CloudService>();
+    final groups = await cloud.getGroups(subscribed.map((e) => e.data.group));
+    for (var g in subscribed) {
+      syncNew.value > 0 ? g.updateLatest() : g.update();
+      final group = groups.firstWhereOrNull((e) => e.group == g.data.group);
+      if (group != null) g._number = group.number;
+    }
 
     _refreshing.value = true;
     final threads = Modular.get<ThreadStore>();
@@ -101,10 +110,6 @@ class GroupStore {
       return;
     }
 
-    final cloud = Modular.get<CloudService>();
-    final groups = await cloud.getGroups(
-      groups: subscribed.map((e) => e.data.group),
-    );
     final updates = groups.where(
       (e) => DateTime.now().difference(e.update).inSeconds > 5,
     );

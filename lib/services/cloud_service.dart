@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/enums.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -20,22 +21,25 @@ class CloudService {
   late final functions = Functions(client);
   late final realtime = Realtime(client);
 
-  Future<List<Group>> getGroups({Iterable<String>? groups}) async {
-    if (groups != null && groups.isEmpty) return [];
-    final rows = (groups == null)
-        ? await tablesDB.listRows(
-            databaseId: 'elaine',
-            tableId: 'groups',
-            queries: [Query.limit(100)],
-          )
-        : await tablesDB.listRows(
-            databaseId: 'elaine',
-            tableId: 'groups',
-            queries: [
-              Query.equal('group', [...groups]),
-              Query.limit(groups.length),
-            ],
-          );
+  Future<List<Group>> getGroups(Iterable<String> groups) async {
+    if (groups.isEmpty) return [];
+    final rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'groups',
+      queries: [
+        Query.equal('group', [...groups]),
+        Query.limit(groups.length),
+      ],
+    );
+    return rows.rows.map((e) => Group(e.data)).toList();
+  }
+
+  Future<List<Group>> getAllGroup() async {
+    final rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'groups',
+      queries: [Query.limit(100)],
+    );
     return rows.rows.map((e) => Group(e.data)).toList();
   }
 
@@ -106,17 +110,28 @@ class CloudService {
 
   Future<List<Thread>> getThreads(
     Iterable<String> groups,
+    Iterable<int> numbers,
     int limit,
     Iterable<String> order, {
     String? cursor,
     bool reverse = false,
   }) async {
-    if (groups.isEmpty) return [];
+    if (groups.isEmpty || numbers.isEmpty) return [];
+    final query = IterableZip([groups, numbers]).map(
+      (e) => Query.and([
+        Query.equal('group', e[0]),
+        Query.lessThanEqual('num', e[1]),
+      ]),
+    );
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'threads',
       queries: [
-        Query.equal('group', groups.toList()),
+        // Query.equal('group', groups.toList()),
+        if (query.singleOrNull != null)
+          query.single
+        else
+          Query.or(query.toList()),
         ...order.map((e) => Query.orderDesc(e)),
         Query.limit(limit),
         if (cursor != null)

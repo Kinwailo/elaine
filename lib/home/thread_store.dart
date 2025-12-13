@@ -153,9 +153,14 @@ class ThreadStore {
 
     final groups = Modular.get<GroupStore>();
     final cloud = Modular.get<CloudService>();
-    final order = ['date', 'latest', 'hot'];
+    final order = switch (DataValue('settings', 'ui').get<int>('order')) {
+      1 => ['latest', 'date', 'hot'],
+      2 => ['hot', 'latest', 'date'],
+      _ => ['date', 'latest', 'hot'],
+    };
     final items = await cloud.getThreads(
       groups.subscribed.map((e) => e.data.group),
+      groups.subscribed.map((e) => e.number),
       _itemsPreFetch,
       order,
       cursor: reverse ? _cursorStart : _cursorEnd,

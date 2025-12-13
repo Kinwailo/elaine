@@ -54,30 +54,26 @@ class PostList extends HookWidget {
           controller: controller,
           physics: AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverPadding(
-              padding: EdgeInsets.only(
-                top: 4,
-                bottom: 2,
-                left: 4,
-                right: 12 + 4,
+            if (countBackward + extraBackward > 0)
+              SliverPadding(
+                padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
+                sliver: SuperSliverList.separated(
+                  itemCount: countBackward + extraBackward,
+                  separatorBuilder: (_, _) => SizedBox(height: 4),
+                  itemBuilder: (_, index) {
+                    return index >= countBackward
+                        ? MorePosts(key: UniqueKey(), prepend: true)
+                        : PostTile(
+                            key: ValueKey(posts.nItems[index]),
+                            posts.nItems[index],
+                          );
+                  },
+                ),
               ),
-              sliver: SuperSliverList.separated(
-                itemCount: countBackward + extraBackward,
-                separatorBuilder: (_, _) => SizedBox(height: 4),
-                itemBuilder: (_, index) {
-                  return index >= countBackward
-                      ? MorePosts(key: UniqueKey(), prepend: true)
-                      : PostTile(
-                          key: ValueKey(posts.nItems[index]),
-                          posts.nItems[index],
-                        );
-                },
-              ),
-            ),
             SliverPadding(
               key: centerKey,
               padding: EdgeInsets.only(
-                top: 2,
+                top: 4,
                 bottom: 4,
                 left: 4,
                 right: 12 + 4,
@@ -95,6 +91,30 @@ class PostList extends HookWidget {
                 },
               ),
             ),
+            if (posts.pItems.isNotEmpty && posts.reachEnd)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                fillOverscroll: true,
+                child: Align(
+                  alignment: AlignmentGeometry.topCenter,
+                  child: SizedBox(
+                    height: 100,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton.filledTonal(
+                          onPressed: posts.retryMore,
+                          icon: Icon(Icons.refresh),
+                        ),
+                        IconButton.filledTonal(
+                          onPressed: posts.goTop,
+                          icon: Icon(Icons.arrow_upward),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -103,9 +123,10 @@ class PostList extends HookWidget {
 }
 
 class MorePosts extends HookWidget {
-  const MorePosts({super.key, this.prepend = false});
+  const MorePosts({super.key, this.prepend = false, this.post});
 
   final bool prepend;
+  final PostData? post;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +137,9 @@ class MorePosts extends HookWidget {
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0.1 && !loaded.value) {
           loaded.value = true;
-          posts.loadMore(reverse: prepend);
+          post == null
+              ? posts.loadMore(reverse: prepend)
+              : posts.loadReply(post!);
         }
       },
       child: LinearProgressIndicator(),
@@ -214,8 +237,9 @@ class PostTile extends HookWidget {
                 padding: const EdgeInsets.all(4),
                 child: Column(
                   children: <Widget>[
-                    if (post.loading) LinearProgressIndicator(),
                     ...post.children.map((e) => PostTile(key: ValueKey(e), e)),
+                    if (post.children.length < post.data.total)
+                      MorePosts(key: UniqueKey(), post: post),
                   ].separator(const SizedBox(height: 4)),
                 ),
               ),

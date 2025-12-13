@@ -173,6 +173,10 @@ class ListNotifier<T> extends ValueNotifier<List<T>>
     value = [];
   }
 
+  void set(Iterable<T> items) {
+    value = [...items];
+  }
+
   void prepend(Iterable<T> items) {
     value = [...items, ...value];
   }

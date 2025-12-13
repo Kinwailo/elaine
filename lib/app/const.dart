@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+const uiOrder = '順序';
+const uiOrderTitle = '最新主題';
+const uiOrderReply = '最近回覆';
+const uiOrderHot = '熱門討論';
 const uiGroup = '群組';
 const uiExpand = '展開';
 const uiCollapse = '收起';

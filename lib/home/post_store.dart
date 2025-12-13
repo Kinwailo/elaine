@@ -5,6 +5,7 @@ import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -45,10 +46,7 @@ class PostData extends ChangeNotifier {
   int _level = 0;
 
   List<PostData> get children => _children;
-  List<PostData> _children = [];
-
-  bool get loading => _loading;
-  bool _loading = false;
+  final _children = <PostData>[];
 
   String? _text;
   bool _visible = false;
@@ -104,11 +102,6 @@ class PostData extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleLoading() {
-    _loading = !_loading;
-    notifyListeners();
-  }
-
   String getText() {
     final text = (_text ?? data.text ?? '');
     final strip = original ? text : text.stripAll;
@@ -141,8 +134,8 @@ class PostData extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setChildren(List<PostData> list) {
-    _children = list;
+  void addChildren(List<PostData> list) {
+    _children.addAll(list);
     notifyListeners();
   }
 }
@@ -239,6 +232,22 @@ class PostStore {
     _postMode.value = value;
   }
 
+  void goTop() {
+    final threads = Modular.get<ThreadStore>();
+    final group = threads.selected?.data.group ?? '';
+    final number = threads.selected?.data.number ?? 0;
+    Modular.to.pushNamedAndRemoveUntil(
+      '/$group/$number',
+      ModalRoute.withName('/$group/'),
+    );
+  }
+
+  void retryMore() {
+    _reachEnd = false;
+    _cursorEnd = pItems.value.lastOrNull?.data.id;
+    loadMore();
+  }
+
   Future<void> loadMore({bool reverse = false}) async {
     if (reverse ? _reachStart || _cursorStart == null : _reachEnd) return;
 
@@ -290,19 +299,25 @@ class PostStore {
     // }
   }
 
-  Future<void> toggleExpand(PostData post) async {
-    post.toggleLoading();
+  void toggleExpand(PostData post) {
     post.toggleFold();
+    loadReply(post);
+  }
+
+  Future<void> loadReply(PostData post) async {
     final cloud = Modular.get<CloudService>();
-    final items = await cloud.getPostsByQuote(post.data.msgid, _itemsPreFetch);
+    final items = await cloud.getPostsByQuote(
+      post.data.msgid,
+      _itemsPreFetch,
+      cursor: post.children.lastOrNull?.data.id,
+    );
     final posts = items
         .map((e) => PostData(e)..setLevel(post.level + 1))
         .toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var post in add) post.data.msgid: post});
-    post.setChildren(posts);
+    post.addChildren(posts);
     _setupPosts(posts);
-    post.toggleLoading();
   }
 
   void _setupPosts(Iterable<PostData> posts) {

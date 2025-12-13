@@ -1,3 +1,4 @@
+import 'package:elaine/services/data_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -108,7 +109,7 @@ class HomePage extends HookWidget {
                 children: [
                   Row(
                     children: [
-                      SizedBox(width: 100),
+                      SizedBox(width: 108),
                       Expanded(
                         child: Scaffold(
                           key: scaffoldKey,
@@ -119,7 +120,7 @@ class HomePage extends HookWidget {
                     ],
                   ),
                   SizedBox(
-                    width: 100,
+                    width: 108,
                     child: NavigationRail(
                       backgroundColor: colorScheme.surfaceContainerHigh,
                       selectedIndex: null,
@@ -167,49 +168,63 @@ class SideBar extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final groups = Modular.get<GroupStore>();
+    final threads = Modular.get<ThreadStore>();
     final group = groups.selected.value;
-    final color = colorScheme.secondaryContainer.withValues(alpha: 0.5);
-    final surface = colorScheme.surfaceContainerLow.withValues(alpha: 0.5);
+    final dv = useMemoized(() => DataValue('settings', 'ui'));
     useListenable(groups.selected);
+    useListenable(dv);
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
           IconButton(onPressed: () {}, icon: const Icon(Icons.settings)),
-          Padding(
-            padding: const EdgeInsets.all(8),
+          SideBarGroup(
+            name: uiOrder,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(8),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Center(child: Text(uiGroup)),
-                  ),
+                ChipItem(
+                  uiOrderTitle,
+                  selectable: true,
+                  selected: dv.get<int>('order') == 0,
+                  onSelect: (v) {
+                    if (v) dv.set('order', 0);
+                    threads.refresh();
+                    return dv.get<int>('order') == 0;
+                  },
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: surface,
-                    borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(8),
-                    ),
-                  ),
-                  child: Visibility(
-                    visible: group != null,
-                    child: ChipItem(
-                      group?.data.name ?? '',
-                      onPress: () => scaffoldKey.currentState?.openDrawer(),
-                    ),
-                  ),
+                ChipItem(
+                  uiOrderReply,
+                  selectable: true,
+                  selected: dv.get<int>('order') == 1,
+                  onSelect: (v) {
+                    if (v) dv.set('order', 1);
+                    threads.refresh();
+                    return dv.get<int>('order') == 1;
+                  },
                 ),
+                if (false)
+                  ChipItem(
+                    uiOrderHot,
+                    selectable: true,
+                    selected: dv.get<int>('order') == 2,
+                    onSelect: (v) {
+                      if (v) dv.set('order', 2);
+                      threads.refresh();
+                      return dv.get<int>('order') == 2;
+                    },
+                  ),
               ],
+            ),
+          ),
+          SideBarGroup(
+            name: uiGroup,
+            child: Visibility(
+              visible: group != null,
+              child: ChipItem(
+                group?.data.name ?? '',
+                onPress: () => scaffoldKey.currentState?.openDrawer(),
+              ),
             ),
           ),
         ].separator(const SizedBox(height: 8)),
@@ -218,32 +233,87 @@ class SideBar extends HookWidget {
   }
 }
 
-class ChipItem extends HookWidget {
-  const ChipItem(this.name, {super.key, this.onPress});
+class SideBarGroup extends HookWidget {
+  const SideBarGroup({super.key, required this.name, required this.child});
 
   final String name;
-  final void Function()? onPress;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final selected = useState(false);
+    final color = colorScheme.secondaryContainer.withValues(alpha: 0.5);
+    final surface = colorScheme.surfaceContainerLow.withValues(alpha: 0.5);
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Center(child: Text(name)),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)),
+            ),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ChipItem extends HookWidget {
+  const ChipItem(
+    this.name, {
+    super.key,
+    this.selected = false,
+    this.selectable = false,
+    this.onPress,
+    this.onSelect,
+  });
+
+  final String name;
+  final bool selected;
+  final bool selectable;
+  final void Function()? onPress;
+  final bool Function(bool value)? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final select = useState(selected);
+    useValueChanged(selected, (_, _) => select.value = selected);
     return Card(
       elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-      color: selected.value
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      color: select.value
           ? colorScheme.secondaryContainer
           : colorScheme.surfaceContainerHighest,
       shadowColor: colorScheme.shadow,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected.value
+          color: select.value
               ? colorScheme.secondary.withValues(alpha: 0.5)
               : colorScheme.outline.withValues(alpha: 0.5),
         ),
       ),
       child: InkWell(
-        onTap: onPress,
+        onTap: !selectable
+            ? onPress
+            : () {
+                select.value = !select.value;
+                select.value = onSelect?.call(select.value) ?? select.value;
+              },
         child: Padding(
           padding: EdgeInsets.all(4),
           child: Text(name, textAlign: TextAlign.center),

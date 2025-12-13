@@ -8,6 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
+import '../services/data_store.dart';
 import 'group_store.dart';
 import 'home_page.dart';
 import 'post_store.dart';
@@ -259,6 +260,10 @@ class ThreadTile extends HookWidget {
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.data.date;
+    final showDate = switch (DataValue('settings', 'ui').get<int>('order')) {
+      1 => thread.data.latest,
+      _ => date,
+    };
     final group = groups.get(thread.data.group);
     final lastRefresh = group?.lastRefresh ?? refDateTime;
     final newThread =
@@ -306,10 +311,10 @@ class ThreadTile extends HookWidget {
                     Text(thread.data.sender, style: senderTextStyle),
                     const SizedBox(width: 8),
                     TooltipVisibility(
-                      visible: date.relative != date.format,
+                      visible: showDate.relative != showDate.format,
                       child: Tooltip(
-                        message: date.format,
-                        child: Text(date.relative, style: subTextStyle),
+                        message: showDate.format,
+                        child: Text(showDate.relative, style: subTextStyle),
                       ),
                     ),
                     Spacer(),
