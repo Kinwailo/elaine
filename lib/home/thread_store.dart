@@ -178,5 +178,9 @@ class ThreadStore {
     final add = threads.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var thread in add) thread.data.msgid: thread});
     reverse ? _nItems.append(threads.reversed) : _pItems.append(threads);
+
+    if (_map.containsKey(selected?.data.msgid)) {
+      _selected = _map[selected?.data.msgid];
+    }
   }
 }

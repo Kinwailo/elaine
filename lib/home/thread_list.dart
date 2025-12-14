@@ -327,8 +327,10 @@ class ThreadTile extends HookWidget {
                 Badge.count(
                   count: unread,
                   backgroundColor: newReply ? newColor : unreadColor,
-                  offset: Offset.fromDirection(-15 / 180 * 3.1415, 12),
-                  isLabelVisible: unread > 0 && unread != thread.data.total,
+                  offset: Offset.fromDirection(-20 / 180 * 3.1415, 12),
+                  isLabelVisible:
+                      (!newThread && newReply && unread > 0) ||
+                      (unread > 0 && unread != thread.data.total),
                   child: Text(thread.data.subject, style: mainTextStyle),
                 ),
               ],
