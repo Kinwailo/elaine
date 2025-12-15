@@ -193,6 +193,7 @@ class CloudService {
 
   Future<List<Post>> getPosts(
     String msgid,
+    int number,
     int limit, {
     String? cursor,
     bool reverse = false,
@@ -201,7 +202,10 @@ class CloudService {
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
-        Query.equal('thread', msgid),
+        Query.and([
+          Query.equal('thread', msgid),
+          Query.lessThanEqual('num', number),
+        ]),
         Query.orderAsc('index'),
         Query.limit(limit),
         if (cursor != null)
@@ -225,6 +229,7 @@ class CloudService {
 
   Future<List<Post>> getPostsByQuote(
     String quote,
+    int number,
     int limit, {
     String? cursor,
   }) async {
@@ -232,7 +237,10 @@ class CloudService {
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
-        Query.equal('quote', quote),
+        Query.and([
+          Query.equal('quote', quote),
+          Query.lessThanEqual('num', number),
+        ]),
         Query.limit(limit),
         Query.orderAsc('index'),
         if (cursor != null) Query.cursorAfter(cursor),

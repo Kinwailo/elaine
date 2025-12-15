@@ -1,5 +1,6 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -305,6 +306,7 @@ class ThreadTile extends HookWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 4,
               children: [
                 Row(
                   children: [
@@ -323,16 +325,38 @@ class ThreadTile extends HookWidget {
                     Text('💬${thread.data.total}', style: subTextStyle),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Badge.count(
-                  count: unread,
-                  backgroundColor: newReply ? newColor : unreadColor,
-                  offset: Offset.fromDirection(-20 / 180 * 3.1415, 12),
-                  isLabelVisible:
-                      (!newThread && newReply && unread > 0) ||
-                      (unread > 0 && unread != thread.data.total),
-                  child: Text(thread.data.subject, style: mainTextStyle),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      flex: 1,
+                      child: Text(thread.data.subject, style: mainTextStyle),
+                    ),
+                    OverflowBox(
+                      fit: OverflowBoxFit.deferToChild,
+                      alignment: AlignmentGeometry.topLeft,
+                      child: !newThread && newReply && unread > 0
+                          ? Badge(backgroundColor: newColor)
+                          : Badge.count(
+                              count: unread,
+                              backgroundColor: newReply
+                                  ? newColor
+                                  : unreadColor,
+                              isLabelVisible:
+                                  unread > 0 && unread != thread.data.total,
+                            ),
+                    ),
+                  ],
                 ),
+                // Badge.count(
+                //   count: unread,
+                //   backgroundColor: newReply ? newColor : unreadColor,
+                //   offset: Offset.fromDirection(-20 / 180 * 3.1415, 12),
+                //   isLabelVisible:
+                //       (!newThread && newReply && unread > 0) ||
+                //       (unread > 0 && unread != thread.data.total),
+                //   child: Text(thread.data.subject, style: mainTextStyle),
+                // ),
               ],
             ),
           ),

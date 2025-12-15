@@ -67,7 +67,7 @@ class GroupStore {
   ValueListenable<int> get syncNew => _syncNew;
   final _syncNew = ValueNotifier<int>(0);
 
-  GroupData? get(String group) {
+  GroupData? get(String? group) {
     return _map[group];
   }
 

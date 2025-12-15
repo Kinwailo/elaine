@@ -1,19 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
+import 'package:universal_html/html.dart';
 
 import '../app/const.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import '../services/models.dart';
+import 'group_store.dart';
 import 'thread_store.dart';
 
 typedef SyncListenable = SelectedListenable<bool, bool?>;
@@ -170,6 +172,11 @@ class PostStore {
 
   final _map = <String, PostData>{};
 
+  ListController get nListController => _nListController;
+  final _nListController = ListController();
+  ListController get pListController => _pListController;
+  final _pListController = ListController();
+
   static const _itemsPreFetch = 25;
 
   String? _cursorStart;
@@ -180,16 +187,17 @@ class PostStore {
   Future<void> select(int index, bool postMode) async {
     _index = 0;
     _postMode.value = postMode;
-    if (!postMode && index == 0) {
-      refresh();
-      return;
-    }
     reset();
 
     final threads = Modular.get<ThreadStore>();
     final thread = threads.selected;
     if (thread == null) return;
     _read = threads.selected?.read.value ?? 0;
+
+    if (!postMode && index == 0) {
+      _reachEnd = false;
+      return;
+    }
 
     final cloud = Modular.get<CloudService>();
     final post = await cloud.getPost(thread.data.msgid, index);
@@ -212,10 +220,11 @@ class PostStore {
   }
 
   void refresh() {
-    reset();
     final threads = Modular.get<ThreadStore>();
     _read = threads.selected?.read.value ?? 0;
     _reachEnd = false;
+    _cursorEnd = pItems.value.lastOrNull?.data.id;
+    loadMore();
   }
 
   void reset() {
@@ -232,27 +241,35 @@ class PostStore {
     _postMode.value = value;
   }
 
-  void goTop() {
-    final threads = Modular.get<ThreadStore>();
-    final group = threads.selected?.data.group ?? '';
-    final number = threads.selected?.data.number ?? 0;
-    Modular.to.pushNamedAndRemoveUntil(
-      '/$group/$number',
-      ModalRoute.withName('/$group/'),
-    );
-  }
-
-  void retryMore() {
-    _reachEnd = false;
-    _cursorEnd = pItems.value.lastOrNull?.data.id;
-    loadMore();
+  void goTop(ScrollController scrollController) {
+    if (index == 0) {
+      final lc = nItems.isEmpty ? _pListController : _nListController;
+      lc.animateToItem(
+        index: 0,
+        scrollController: scrollController,
+        alignment: 0,
+        duration: (_) => 0.1.seconds,
+        curve: (_) => Curves.easeInOut,
+      );
+    } else {
+      final threads = Modular.get<ThreadStore>();
+      final group = threads.selected?.data.group ?? '';
+      final number = threads.selected?.data.number ?? 0;
+      Modular.to.pushNamedAndRemoveUntil(
+        '/$group/$number',
+        ModalRoute.withName('/$group/'),
+      );
+    }
   }
 
   Future<void> loadMore({bool reverse = false}) async {
     if (reverse ? _reachStart || _cursorStart == null : _reachEnd) return;
 
     final cloud = Modular.get<CloudService>();
+    final groups = Modular.get<GroupStore>();
     final threads = Modular.get<ThreadStore>();
+    final group = groups.get(threads.selected?.data.group);
+    if (group == null) return;
 
     late List<Post> items;
     if (postMode.value) {
@@ -267,6 +284,7 @@ class PostStore {
       } else {
         items = await cloud.getPostsByQuote(
           selected!.data.msgid,
+          group.number,
           _itemsPreFetch,
           cursor: _cursorEnd,
         );
@@ -277,6 +295,7 @@ class PostStore {
       if (threads.selected == null) return;
       items = await cloud.getPosts(
         threads.selected!.data.msgid,
+        group.number,
         _itemsPreFetch,
         cursor: reverse ? _cursorStart : _cursorEnd,
         reverse: reverse,
@@ -306,8 +325,13 @@ class PostStore {
 
   Future<void> loadReply(PostData post) async {
     final cloud = Modular.get<CloudService>();
+    final groups = Modular.get<GroupStore>();
+    final threads = Modular.get<ThreadStore>();
+    final group = groups.get(threads.selected?.data.group);
+    if (group == null) return;
     final items = await cloud.getPostsByQuote(
       post.data.msgid,
+      group.number,
       _itemsPreFetch,
       cursor: post.children.lastOrNull?.data.id,
     );

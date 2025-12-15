@@ -151,8 +151,8 @@ class ThreadStore {
     final pass = reverse ? _reachStart || _cursorStart == null : _reachEnd;
     if (pass) return;
 
-    final groups = Modular.get<GroupStore>();
     final cloud = Modular.get<CloudService>();
+    final groups = Modular.get<GroupStore>();
     final order = switch (DataValue('settings', 'ui').get<int>('order')) {
       1 => ['latest', 'date', 'hot'],
       2 => ['hot', 'latest', 'date'],

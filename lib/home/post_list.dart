@@ -58,6 +58,7 @@ class PostList extends HookWidget {
               SliverPadding(
                 padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
                 sliver: SuperSliverList.separated(
+                  listController: posts.nListController,
                   itemCount: countBackward + extraBackward,
                   separatorBuilder: (_, _) => SizedBox(height: 4),
                   itemBuilder: (_, index) {
@@ -79,6 +80,7 @@ class PostList extends HookWidget {
                 right: 12 + 4,
               ),
               sliver: SuperSliverList.separated(
+                listController: posts.pListController,
                 itemCount: countForward + extraForward,
                 separatorBuilder: (_, _) => SizedBox(height: 4),
                 itemBuilder: (_, index) {
@@ -92,9 +94,7 @@ class PostList extends HookWidget {
               ),
             ),
             if (posts.pItems.isNotEmpty && posts.reachEnd)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                fillOverscroll: true,
+              SliverToBoxAdapter(
                 child: Align(
                   alignment: AlignmentGeometry.topCenter,
                   child: SizedBox(
@@ -103,11 +103,11 @@ class PostList extends HookWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         IconButton.filledTonal(
-                          onPressed: posts.retryMore,
+                          onPressed: posts.refresh,
                           icon: Icon(Icons.refresh),
                         ),
                         IconButton.filledTonal(
-                          onPressed: posts.goTop,
+                          onPressed: () => posts.goTop(controller),
                           icon: Icon(Icons.arrow_upward),
                         ),
                       ],
