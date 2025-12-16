@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
@@ -67,11 +68,15 @@ class GroupStore {
   ValueListenable<int> get syncNew => _syncNew;
   final _syncNew = ValueNotifier<int>(0);
 
+  Future<void> get complete => _completer.future;
+  var _completer = Completer<void>();
+
   GroupData? get(String? group) {
     return _map[group];
   }
 
   Future<void> select(String? group) async {
+    _completer = Completer<void>();
     if (items.isEmpty) {
       final cloud = Modular.get<CloudService>();
       final groups = (await cloud.getAllGroup())
@@ -88,6 +93,7 @@ class GroupStore {
     _selected.value = items.value.firstWhereOrNull(
       (e) => e.data.group == group,
     );
+    _completer.complete();
     final threads = Modular.get<ThreadStore>();
     threads.refresh();
   }

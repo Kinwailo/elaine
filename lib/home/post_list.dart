@@ -1,6 +1,7 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -26,7 +27,9 @@ class PostList extends HookWidget {
     final extraBackward = posts.reachStart ? 0 : 1;
     final countForward = posts.pItems.length;
     final extraForward = posts.reachEnd ? 0 : 1;
-    final controller = useScrollController();
+    final scrollController = useScrollController();
+    final nListController = useMemoized(() => ListController());
+    final pListController = useMemoized(() => ListController());
     useListenable(posts.nItems);
     useListenable(posts.pItems);
     return Scaffold(
@@ -45,20 +48,20 @@ class PostList extends HookWidget {
         ),
       ),
       body: Scrollbar(
-        controller: controller,
+        controller: scrollController,
         thumbVisibility: true,
         trackVisibility: true,
         thickness: 8,
         child: CustomScrollView(
           center: centerKey,
-          controller: controller,
+          controller: scrollController,
           physics: AlwaysScrollableScrollPhysics(),
           slivers: [
             if (countBackward + extraBackward > 0)
               SliverPadding(
                 padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
                 sliver: SuperSliverList.separated(
-                  listController: posts.nListController,
+                  listController: nListController,
                   itemCount: countBackward + extraBackward,
                   separatorBuilder: (_, _) => SizedBox(height: 4),
                   itemBuilder: (_, index) {
@@ -80,7 +83,7 @@ class PostList extends HookWidget {
                 right: 12 + 4,
               ),
               sliver: SuperSliverList.separated(
-                listController: posts.pListController,
+                listController: pListController,
                 itemCount: countForward + extraForward,
                 separatorBuilder: (_, _) => SizedBox(height: 4),
                 itemBuilder: (_, index) {
@@ -107,7 +110,28 @@ class PostList extends HookWidget {
                           icon: Icon(Icons.refresh),
                         ),
                         IconButton.filledTonal(
-                          onPressed: () => posts.goTop(controller),
+                          onPressed: () {
+                            if (posts.index == 0) {
+                              final listController = posts.nItems.isEmpty
+                                  ? pListController
+                                  : nListController;
+                              listController.animateToItem(
+                                index: 0,
+                                scrollController: scrollController,
+                                alignment: 0,
+                                duration: (_) => 0.1.seconds,
+                                curve: (_) => Curves.easeInOut,
+                              );
+                            } else {
+                              final threads = Modular.get<ThreadStore>();
+                              final group = threads.selected?.data.group ?? '';
+                              final number = threads.selected?.data.number ?? 0;
+                              Modular.to.pushNamedAndRemoveUntil(
+                                '/$group/$number',
+                                ModalRoute.withName('/$group/'),
+                              );
+                            }
+                          },
                           icon: Icon(Icons.arrow_upward),
                         ),
                       ],

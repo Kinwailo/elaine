@@ -7,8 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:super_sliver_list/super_sliver_list.dart';
-import 'package:universal_html/html.dart';
 
 import '../app/const.dart';
 import '../app/string_utils.dart';
@@ -47,6 +45,9 @@ class PostData extends ChangeNotifier {
   int get level => _level;
   int _level = 0;
 
+  int get total => _total;
+  int _total = 0;
+
   List<PostData> get children => _children;
   final _children = <PostData>[];
 
@@ -55,7 +56,7 @@ class PostData extends ChangeNotifier {
   bool _visiblePending = false;
   Timer? _visibleTimer;
 
-  PostData(Post post) : _data = post {
+  PostData(Post post) : _data = post, _total = post.total {
     if (post.text == null) return;
     _sync.value = post.textFile == null;
     _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
@@ -140,6 +141,11 @@ class PostData extends ChangeNotifier {
     _children.addAll(list);
     notifyListeners();
   }
+
+  void incTotal() {
+    _total++;
+    notifyListeners();
+  }
 }
 
 class ImageData {
@@ -171,11 +177,6 @@ class PostStore {
   final _postMode = ValueNotifier<bool>(false);
 
   final _map = <String, PostData>{};
-
-  ListController get nListController => _nListController;
-  final _nListController = ListController();
-  ListController get pListController => _pListController;
-  final _pListController = ListController();
 
   static const _itemsPreFetch = 25;
 
@@ -219,14 +220,6 @@ class PostStore {
     }
   }
 
-  void refresh() {
-    final threads = Modular.get<ThreadStore>();
-    _read = threads.selected?.read.value ?? 0;
-    _reachEnd = false;
-    _cursorEnd = pItems.value.lastOrNull?.data.id;
-    loadMore();
-  }
-
   void reset() {
     _cursorStart = null;
     _reachStart = true;
@@ -237,29 +230,16 @@ class PostStore {
     _map.clear();
   }
 
-  void setPostMode(bool value) {
-    _postMode.value = value;
+  void refresh() {
+    final threads = Modular.get<ThreadStore>();
+    _read = threads.selected?.read.value ?? 0;
+    _reachEnd = false;
+    _cursorEnd = pItems.value.lastOrNull?.data.id;
+    loadMore();
   }
 
-  void goTop(ScrollController scrollController) {
-    if (index == 0) {
-      final lc = nItems.isEmpty ? _pListController : _nListController;
-      lc.animateToItem(
-        index: 0,
-        scrollController: scrollController,
-        alignment: 0,
-        duration: (_) => 0.1.seconds,
-        curve: (_) => Curves.easeInOut,
-      );
-    } else {
-      final threads = Modular.get<ThreadStore>();
-      final group = threads.selected?.data.group ?? '';
-      final number = threads.selected?.data.number ?? 0;
-      Modular.to.pushNamedAndRemoveUntil(
-        '/$group/$number',
-        ModalRoute.withName('/$group/'),
-      );
-    }
+  void setPostMode(bool value) {
+    _postMode.value = value;
   }
 
   Future<void> loadMore({bool reverse = false}) async {

@@ -92,6 +92,7 @@ class ThreadStore {
     bool postMode,
   ) async {
     final groups = Modular.get<GroupStore>();
+    await groups.complete;
     final changed =
         selected?.data.number != number ||
         groups.selected.value?.data.group == group;
@@ -113,9 +114,11 @@ class ThreadStore {
       if (_tile.value == null) {
         _cursorStart = thread.id;
         _reachStart = false;
+        _nItems.clear();
         _cursorEnd = thread.id;
         _reachEnd = false;
-        _pItems.append([data]);
+        _pItems.set([data]);
+        _map.clear();
       }
     }
 

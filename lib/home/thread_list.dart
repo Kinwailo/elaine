@@ -111,7 +111,10 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
     useListenable(groups.syncNew);
     return AppBar(
       toolbarHeight: kToolbarHeight - 12,
-      title: Text('', style: mainTextStyle),
+      title: Text(
+        groups.subscribed.map((e) => e.data.name).join(', '),
+        style: mainTextStyle,
+      ),
       titleSpacing: 10,
       bottom: _syncStateBar,
       actionsPadding: EdgeInsets.only(right: 2),
@@ -339,11 +342,14 @@ class ThreadTile extends HookWidget {
                           ? Badge(backgroundColor: newColor)
                           : Badge.count(
                               count: unread,
+                              offset: Offset(0, -4),
+                              alignment: AlignmentGeometry.xy(-1, 0),
                               backgroundColor: newReply
                                   ? newColor
                                   : unreadColor,
                               isLabelVisible:
                                   unread > 0 && unread != thread.data.total,
+                              child: SizedBox(width: 1),
                             ),
                     ),
                   ],
