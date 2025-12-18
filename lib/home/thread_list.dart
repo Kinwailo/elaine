@@ -1,4 +1,3 @@
-import 'package:elaine/widgets/app_link.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -11,8 +10,8 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../app/const.dart';
 import '../app/utils.dart';
 import '../services/data_store.dart';
+import '../widgets/app_link.dart';
 import 'group_store.dart';
-import 'home_page.dart';
 import 'post_store.dart';
 import 'thread_store.dart';
 

@@ -1,13 +1,12 @@
-import 'package:elaine/services/data_store.dart';
-import 'package:elaine/widgets/chip_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:url_launcher/link.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
+import '../services/data_store.dart';
+import '../widgets/chip_item.dart';
 import 'group_store.dart';
 import 'post_store.dart';
 import 'thread_list.dart';
