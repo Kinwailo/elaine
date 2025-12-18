@@ -1,3 +1,5 @@
+import 'package:elaine/widgets/app_link.dart';
+import 'package:elaine/widgets/show_more_box.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -244,15 +246,18 @@ class PostTile extends HookWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: SelectionArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    PostTileHeadbar(post),
-                    if (quote != null) PostTileQuote(quote),
-                    if (post.getText().isNotEmpty) PostTileText(post),
-                    if (post.images.isNotEmpty) PostTileImages(post),
-                  ].separator(const SizedBox(height: 8)),
+              child: ShowMoreBox(
+                maxHeight: 600,
+                child: SelectionArea(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      PostTileHeadbar(post),
+                      if (quote != null) PostTileQuote(quote),
+                      if (post.getText().isNotEmpty) PostTileText(post),
+                      if (post.images.isNotEmpty) PostTileImages(post),
+                    ].separator(const SizedBox(height: 8)),
+                  ),
                 ),
               ),
             ),
@@ -474,34 +479,36 @@ class PostTileQuote extends HookWidget {
             ),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text.rich(
-                TextSpan(
-                  text: '${post.data.sender}: ',
-                  style: senderTextStyle,
-                  children: [
-                    if (post.syncing.value) ...[
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: SizedBox.square(
-                          dimension: 12,
-                          child: CircularProgressIndicator(strokeWidth: 1),
+          child: ShowMoreBox.mini(
+            maxHeight: 100,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    text: '${post.data.sender}: ',
+                    style: senderTextStyle,
+                    children: [
+                      if (post.syncing.value) ...[
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: SizedBox.square(
+                            dimension: 12,
+                            child: CircularProgressIndicator(strokeWidth: 1),
+                          ),
                         ),
+                        WidgetSpan(child: SizedBox(width: 4)),
+                      ],
+                      TextSpan(
+                        text: post.getText(),
+                        style: post.error.value ? errorTextStyle : subTextStyle,
                       ),
-                      WidgetSpan(child: SizedBox(width: 4)),
                     ],
-                    TextSpan(
-                      text: post.getText(),
-                      style: post.error.value ? errorTextStyle : subTextStyle,
-                    ),
-                  ],
+                  ),
                 ),
-                maxLines: 3,
-              ),
-              if (post.images.isNotEmpty) PostTilePreviews(post),
-            ],
+                if (post.images.isNotEmpty) PostTilePreviews(post),
+              ],
+            ),
           ),
         ),
       ],

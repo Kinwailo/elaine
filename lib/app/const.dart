@@ -7,6 +7,8 @@ const uiOrderHot = '熱門討論';
 const uiGroup = '群組';
 const uiExpand = '展開';
 const uiCollapse = '收起';
+const uiShowMore = '顯示更多';
+const uiShowLess = '顯示較少';
 
 const emptyText = '無內文';
 const syncBodyText = '載入發文內容中…';
@@ -18,6 +20,7 @@ const retryText = '重新載入';
 const mainTextStyle = TextStyle(fontSize: 18);
 const subTextStyle = TextStyle(color: Colors.grey, fontSize: 14);
 const senderTextStyle = TextStyle(color: Colors.blueAccent, fontSize: 14);
+const miniTextStyle = TextStyle(fontSize: 12);
 const pinnedTextStyle = TextStyle(fontSize: 16);
 const errorTextStyle = TextStyle(color: Colors.redAccent);
 const clickableTextStyle = TextStyle(

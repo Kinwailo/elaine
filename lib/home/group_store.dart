@@ -68,8 +68,8 @@ class GroupStore {
   ValueListenable<int> get syncNew => _syncNew;
   final _syncNew = ValueNotifier<int>(0);
 
-  Future<void> get complete => _completer.future;
-  var _completer = Completer<void>();
+  Future<void> get complete => _completer?.future ?? Future.value();
+  Completer<void>? _completer;
 
   GroupData? get(String? group) {
     return _map[group];
@@ -93,7 +93,7 @@ class GroupStore {
     _selected.value = items.value.firstWhereOrNull(
       (e) => e.data.group == group,
     );
-    _completer.complete();
+    _completer?.complete();
     final threads = Modular.get<ThreadStore>();
     threads.refresh();
   }

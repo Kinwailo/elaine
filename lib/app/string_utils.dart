@@ -125,7 +125,13 @@ extension StringUtils on String {
             start - 1,
           );
           start = br == -1 ? start : br;
-          start = text.lastIndexOf(RegExp(r'^.*?', multiLine: true), start - 1);
+          if (start > 0) {
+            start = text.lastIndexOf(
+              RegExp(r'^.*?', multiLine: true),
+              start - 1,
+            );
+          }
+          if (start < 0) start = 0;
         }
         if (end == -1) {
           text = text.substring(0, start);
