@@ -76,6 +76,8 @@ class GroupStore {
   }
 
   Future<void> select(String? group) async {
+    if (_selected.value?.data.group == group) return;
+
     _completer = Completer<void>();
     if (items.isEmpty) {
       final cloud = Modular.get<CloudService>();
@@ -89,7 +91,6 @@ class GroupStore {
         );
       }
     }
-    if (_selected.value?.data.group == group) return;
     _selected.value = items.value.firstWhereOrNull(
       (e) => e.data.group == group,
     );

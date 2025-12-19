@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:linkify/linkify.dart';
+import 'package:hashlib/hashlib.dart';
 
 import '../app/const.dart';
 import '../app/string_utils.dart';
@@ -32,6 +34,10 @@ class PostData extends ChangeNotifier {
 
   Iterable<ValueNotifier<ImageData?>> get images => _images.values;
   Map<String, ValueNotifier<ImageData?>> _images = {};
+
+  Iterable<String> get urls => _links.keys;
+  Iterable<ValueNotifier<LinkData?>> get links => _links.values;
+  Map<String, ValueNotifier<LinkData?>> _links = {};
 
   bool get original => _original;
   bool _original = false;
@@ -60,6 +66,7 @@ class PostData extends ChangeNotifier {
     if (post.text == null) return;
     _sync.value = post.textFile == null;
     _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
+    runLinkify();
   }
 
   void syncRetry() {
@@ -70,8 +77,9 @@ class PostData extends ChangeNotifier {
 
   void syncFrom(Post post) {
     _data = post;
-    _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
     _sync.value = post.textFile == null;
+    _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
+    runLinkify();
     setVisible(_visiblePending);
     notifyListeners();
   }
@@ -84,8 +92,20 @@ class PostData extends ChangeNotifier {
   void setText(String text) {
     _text = text;
     _sync.value = true;
+    runLinkify();
     setVisible(_visiblePending);
     notifyListeners();
+  }
+
+  void runLinkify() {
+    if (!synced.value) return;
+    final opt = const LinkifyOptions(humanize: false);
+    final links = linkify(getText(), options: opt)
+        .whereType<UrlElement>()
+        .map((e) => e.url)
+        .where((e) => const ['http', 'https'].contains(Uri.parse(e).scheme))
+        .toSet();
+    _links = {for (var url in links) url: ValueNotifier<LinkData?>(null)};
   }
 
   void setQuote(PostData post) {
@@ -94,8 +114,21 @@ class PostData extends ChangeNotifier {
   }
 
   void setImage(String id, ImageData data) {
+    if (!_images.containsKey(id)) return;
     if (_images[id]?.value == null) {
       _images[id]?.value = data;
+    }
+    notifyListeners();
+  }
+
+  LinkData? getLink(String url) {
+    return _links[url]?.value;
+  }
+
+  void setLink(String url, LinkData data) {
+    if (!_links.containsKey(url)) return;
+    if (_links[url]?.value == null) {
+      _links[url]?.value = data;
     }
     notifyListeners();
   }
@@ -153,6 +186,15 @@ class ImageData {
   Uint8List data;
   Size size;
   ImageData(this.data, this.size);
+}
+
+class LinkData {
+  String url;
+  String? title;
+  String? desc;
+  ImageData? icon;
+  ImageData? image;
+  LinkData(this.url, this.title, this.desc, this.icon, this.image);
 }
 
 class PostStore {
@@ -415,5 +457,33 @@ class PostStore {
     final data = await cloud.getFile(id);
     final size = await getImageSize(data);
     return ImageData(data, size);
+  }
+
+  Future<void> processLink(PostData post) async {
+    if (!post.synced.value) return;
+    for (var url in post.urls) {
+      final link = await _getLinkData(url);
+      if (link != null) post.setLink(url, link);
+    }
+  }
+
+  Future<LinkData?> _getLinkData(String url) async {
+    final cloud = Modular.get<CloudService>();
+    final hash = sha3_256.string(url, utf8).hex();
+    final data = await cloud.getDatas(hash);
+    if (data == null) return null;
+    final title = data['title'];
+    final desc = data['desc'];
+    ImageData? iconData;
+    if (data['icon'] != null) {
+      final icon = await cloud.getDatas(data['icon']);
+      if (icon != null) iconData = await _loadImageData(icon['file']);
+    }
+    ImageData? imageData;
+    if (data['image'] != null) {
+      final image = await cloud.getDatas(data['image']);
+      if (image != null) imageData = await _loadImageData(image['file']);
+    }
+    return LinkData(url, title, desc, iconData, imageData);
   }
 }

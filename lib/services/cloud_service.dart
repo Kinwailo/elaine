@@ -44,7 +44,7 @@ class CloudService {
   }
 
   Future<Map<String, List<int>>> checkGroups(Iterable<String> groups) async {
-    var e = await functions.createExecution(
+    final e = await functions.createExecution(
       functionId: 'elaine_worker',
       method: ExecutionMethod.pOST,
       headers: {'content-type': 'application/json'},
@@ -179,7 +179,7 @@ class CloudService {
   }
 
   Future<Post?> getPost(String thread, int index) async {
-    var rows = await tablesDB.listRows(
+    final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
@@ -216,7 +216,7 @@ class CloudService {
   }
 
   Future<List<Post>> getPostsByMsgids(Iterable<String> msgids) async {
-    var rows = await tablesDB.listRows(
+    final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
@@ -233,7 +233,7 @@ class CloudService {
     int limit, {
     String? cursor,
   }) async {
-    var rows = await tablesDB.listRows(
+    final rows = await tablesDB.listRows(
       databaseId: 'elaine',
       tableId: 'posts',
       queries: [
@@ -247,6 +247,18 @@ class CloudService {
       ],
     );
     return rows.rows.map((e) => Post(e.data)).toList();
+  }
+
+  Future<RowData?> getDatas(String hash) async {
+    final rows = await tablesDB.listRows(
+      databaseId: 'elaine',
+      tableId: 'datas',
+      queries: [Query.equal('hash', hash), Query.limit(1)],
+    );
+    final row = rows.rows.firstOrNull;
+    if (row == null) return null;
+    final data = row.data['datas'] as List;
+    return jsonDecode(data.join()) as RowData;
   }
 
   Future<Uint8List> getFile(String id) async {

@@ -5,10 +5,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:linkify/linkify.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
+import '../app/string_utils.dart';
 import '../app/utils.dart';
 import '../widgets/app_link.dart';
 import '../widgets/show_more_box.dart';
@@ -188,6 +191,10 @@ class PostTile extends HookWidget {
       ...post.images,
       post.synced.value,
     ]);
+    useMemoized(() => posts.processLink(post), [
+      ...post.urls,
+      post.synced.value,
+    ]);
     final quote = post.quote.value;
 
     final group = groups.get(threads.selected?.data.group ?? '');
@@ -317,15 +324,176 @@ class PostTileText extends HookWidget {
                   style: mainTextStyle.merge(clickableTextStyle),
                 ),
               ],
-            )
-          else
-            post.data.html
-                ? WidgetSpan(child: Html(data: post.getText()))
-                : TextSpan(text: post.getText(), style: mainTextStyle),
+            ),
+          // else
+          //   post.data.html
+          //       ? WidgetSpan(child: Html(data: post.getText()))
+          //       : TextSpan(text: post.getText(), style: mainTextStyle),
+          if (!post.error.value) ...linkifyTextSpan(context, post),
         ],
       ),
     );
   }
+}
+
+List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
+  final colorScheme = Theme.of(context).colorScheme;
+  final opt = const LinkifyOptions(humanize: false);
+  final linkifies = linkify(post.getText(), options: opt);
+  final spans = linkifies.expand((e) {
+    if (e is! LinkableElement) {
+      return [TextSpan(text: e.text, style: mainTextStyle)];
+    }
+    if (e is EmailElement) {
+      return [TextSpan(text: e.text, style: mainTextStyle)];
+    }
+
+    final link = post.getLink(e.url);
+    final nonNulls = [link?.title, link?.desc, link?.image].nonNulls;
+    if (link == null || nonNulls.isEmpty) {
+      return [
+        if (link == null)
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.ideographic,
+            child: Padding(
+              padding: EdgeInsets.only(right: 4),
+              child: SizedBox.square(
+                dimension: 12,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else
+          const WidgetSpan(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2),
+              child: Icon(Icons.link, size: 16),
+            ),
+          ),
+        TextSpan(
+          text: e.url.decodeUrl,
+          style: const TextStyle(
+            color: Colors.blueAccent,
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => launchUrlString(e.url),
+        ),
+      ];
+    } else if (nonNulls.isNotEmpty && nonNulls.first == link.image) {
+      var maxWidth = 600.0;
+      return [
+        WidgetSpan(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Image.memory(
+              link.image!.data,
+              height: 100,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ];
+    } else {
+      var desc = link.desc ?? '';
+      desc = desc == link.url ? '' : desc;
+      desc += link.image == null ? '' : '\n\n\n';
+      return [
+        WidgetSpan(
+          child: Card(
+            color: colorScheme.surfaceContainerHighest,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(
+                color: colorScheme.outline.withValues(alpha: 0.4),
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Table(
+              columnWidths: link.image == null
+                  ? null
+                  : const {0: FixedColumnWidth(80)},
+              children: [
+                TableRow(
+                  children: [
+                    if (link.image != null)
+                      TableCell(
+                        verticalAlignment: TableCellVerticalAlignment.fill,
+                        child: Image.memory(
+                          link.image!.data,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    InkWell(
+                      onTap: () => launchUrlString(link.url),
+                      child: SizedBox(
+                        // height: link.image == null ? null : 80,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Ink(
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                child: Text(
+                                  link.title ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: subTextStyle.copyWith(
+                                    color: colorScheme.onTertiaryContainer,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (desc.isNotEmpty || link.image != null)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Text(
+                                  desc,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: subTextStyle,
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: Text(
+                                link.url.decodeUrl,
+                                maxLines: 1,
+                                style: subTextStyle.copyWith(
+                                  color: Colors.blueAccent,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+  });
+  return spans.cast<InlineSpan>().toList();
 }
 
 class PostTileHeadbar extends HookWidget {
