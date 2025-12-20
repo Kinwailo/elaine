@@ -470,8 +470,13 @@ class PostStore {
   Future<LinkData?> _getLinkData(String url) async {
     final cloud = Modular.get<CloudService>();
     final hash = sha3_256.string(url, utf8).hex();
-    final data = await cloud.getDatas(hash);
+    var data = await cloud.getDatas(hash);
+    data ??= await cloud.getLink(url);
     if (data == null) return null;
+    if (data['file'] != null) {
+      final imageData = await _loadImageData(data['file']);
+      return LinkData(url, null, null, null, imageData);
+    }
     final title = data['title'];
     final desc = data['desc'];
     ImageData? iconData;

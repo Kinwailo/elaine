@@ -337,7 +337,6 @@ class PostTileText extends HookWidget {
 }
 
 List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
-  final colorScheme = Theme.of(context).colorScheme;
   final opt = const LinkifyOptions(humanize: false);
   final linkifies = linkify(post.getText(), options: opt);
   final spans = linkifies.expand((e) {
@@ -355,28 +354,31 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
         if (link == null)
           const WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
-            baseline: TextBaseline.ideographic,
+            baseline: TextBaseline.alphabetic,
             child: Padding(
               padding: EdgeInsets.only(right: 4),
               child: SizedBox.square(
-                dimension: 12,
+                dimension: 14,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
           )
         else
-          const WidgetSpan(
+          WidgetSpan(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 2),
-              child: Icon(Icons.link, size: 16),
+              child: link.icon == null
+                  ? Icon(Icons.link, size: 16)
+                  : Image.memory(
+                      link.icon!.data,
+                      height: 16,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
         TextSpan(
           text: e.url.decodeUrl,
-          style: const TextStyle(
-            color: Colors.blueAccent,
-            decoration: TextDecoration.underline,
-          ),
+          style: mainTextStyle.merge(clickableTextStyle),
           recognizer: TapGestureRecognizer()
             ..onTap = () => launchUrlString(e.url),
         ),
@@ -396,104 +398,115 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
         ),
       ];
     } else {
-      var desc = link.desc ?? '';
-      desc = desc == link.url ? '' : desc;
-      desc += link.image == null ? '' : '\n\n\n';
-      return [
-        WidgetSpan(
-          child: Card(
-            color: colorScheme.surfaceContainerHighest,
-            shape: RoundedRectangleBorder(
-              side: BorderSide(
-                color: colorScheme.outline.withValues(alpha: 0.4),
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Table(
-              columnWidths: link.image == null
-                  ? null
-                  : const {0: FixedColumnWidth(80)},
-              children: [
-                TableRow(
+      return [WidgetSpan(child: PostTileLinkCard(link))];
+    }
+  });
+  return spans.cast<InlineSpan>().toList();
+}
+
+class PostTileLinkCard extends HookWidget {
+  const PostTileLinkCard(this.link, {super.key});
+
+  final LinkData link;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    var desc = link.desc ?? '';
+    desc += link.image == null ? '' : '\n\n\n';
+    return Card(
+      color: colorScheme.surfaceContainerHighest,
+      margin: EdgeInsets.all(0),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Table(
+        columnWidths: link.image == null
+            ? null
+            : const {0: FixedColumnWidth(108)},
+        children: [
+          TableRow(
+            children: [
+              if (link.image != null)
+                TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.fill,
+                  child: Image.memory(
+                    link.image!.data,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              InkWell(
+                onTap: () => launchUrlString(link.url),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (link.image != null)
-                      TableCell(
-                        verticalAlignment: TableCellVerticalAlignment.fill,
-                        child: Image.memory(
-                          link.image!.data,
-                          height: 100,
-                          fit: BoxFit.cover,
+                    Ink(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer.withValues(
+                          alpha: 0.8,
                         ),
                       ),
-                    InkWell(
-                      onTap: () => launchUrlString(link.url),
-                      child: SizedBox(
-                        // height: link.image == null ? null : 80,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Ink(
-                              decoration: BoxDecoration(
-                                color: colorScheme.primaryContainer.withValues(
-                                  alpha: 0.8,
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 1,
-                                ),
-                                child: Text(
-                                  link.title ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: subTextStyle.copyWith(
-                                    color: colorScheme.onTertiaryContainer,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (desc.isNotEmpty || link.image != null)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: Text(
-                                  desc,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: subTextStyle,
-                                ),
-                              ),
+                      child: Row(
+                        children: [
+                          if (link.icon != null)
                             Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: Text(
-                                link.url.decodeUrl,
-                                maxLines: 1,
-                                style: subTextStyle.copyWith(
-                                  color: Colors.blueAccent,
-                                  decoration: TextDecoration.underline,
-                                ),
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Image.memory(
+                                link.icon!.data,
+                                height: 16,
+                                fit: BoxFit.cover,
                               ),
                             ),
-                          ],
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 3,
+                            ),
+                            child: Text(
+                              link.title ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: subTextStyle.copyWith(
+                                color: colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (desc.isNotEmpty || link.image != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          desc,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: subTextStyle,
                         ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      child: Text(
+                        link.url.decodeUrl,
+                        maxLines: 1,
+                        style: subTextStyle.merge(clickableTextStyle),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ];
-    }
-  });
-  return spans.cast<InlineSpan>().toList();
+        ],
+      ),
+    );
+  }
 }
 
 class PostTileHeadbar extends HookWidget {

@@ -127,7 +127,6 @@ class CloudService {
       databaseId: 'elaine',
       tableId: 'threads',
       queries: [
-        // Query.equal('group', groups.toList()),
         if (query.singleOrNull != null)
           query.single
         else
@@ -259,6 +258,17 @@ class CloudService {
     if (row == null) return null;
     final data = row.data['datas'] as List;
     return jsonDecode(data.join()) as RowData;
+  }
+
+  Future<RowData?> getLink(String url) async {
+    final link = await functions.createExecution(
+      functionId: 'elaine_worker',
+      xasync: false,
+      method: ExecutionMethod.pOST,
+      headers: {'content-type': 'application/json'},
+      body: '{"action":"grab_link","data":"$url"}',
+    );
+    return json.decode(link.responseBody) as RowData?;
   }
 
   Future<Uint8List> getFile(String id) async {
