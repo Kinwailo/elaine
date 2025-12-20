@@ -252,18 +252,25 @@ class PostTile extends HookWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: ShowMoreBox(
-                maxHeight: 600,
-                child: SelectionArea(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      PostTileHeadbar(post),
-                      if (quote != null) PostTileQuote(quote),
-                      if (post.getText().isNotEmpty) PostTileText(post),
-                      if (post.images.isNotEmpty) PostTileImages(post),
-                    ].separator(const SizedBox(height: 8)),
-                  ),
+              child: SelectionArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 8,
+                  children: [
+                    PostTileHeadbar(post),
+                    if (quote != null) PostTileQuote(quote),
+                    ShowMoreBox(
+                      maxHeight: 600,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 8,
+                        children: [
+                          if (post.getText().isNotEmpty) PostTileText(post),
+                          if (post.images.isNotEmpty) PostTileImages(post),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -365,6 +372,7 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
           )
         else
           WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 2),
               child: link.icon == null
@@ -448,33 +456,35 @@ class PostTileLinkCard extends HookWidget {
                           alpha: 0.8,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          if (link.icon != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 4),
-                              child: Image.memory(
-                                link.icon!.data,
-                                height: 16,
-                                fit: BoxFit.cover,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 1,
+                          horizontal: 4,
+                        ),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              if (link.icon != null)
+                                WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: Image.memory(
+                                    link.icon!.data,
+                                    height: 18,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              TextSpan(
+                                text: link.title ?? '',
+                                style: subTextStyle.copyWith(
+                                  color: colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 3,
-                            ),
-                            child: Text(
-                              link.title ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: subTextStyle.copyWith(
-                                color: colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            ],
                           ),
-                        ],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                     if (desc.isNotEmpty || link.image != null)

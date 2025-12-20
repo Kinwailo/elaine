@@ -445,6 +445,7 @@ class PostStore {
   }
 
   Future<void> loadImage(PostData post) async {
+    print(post.data.index);
     if (!post.synced.value) return;
     for (var id in post.data.files) {
       final image = await _loadImageData(id);
