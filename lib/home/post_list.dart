@@ -257,16 +257,16 @@ class PostTile extends HookWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: 8,
                   children: [
-                    PostTileHeadbar(post),
-                    if (quote != null) PostTileQuote(quote),
+                    PostHeadbar(post),
+                    if (quote != null) PostQuote(quote),
                     ShowMoreBox(
                       maxHeight: 600,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         spacing: 8,
                         children: [
-                          if (post.getText().isNotEmpty) PostTileText(post),
-                          if (post.images.isNotEmpty) PostTileImages(post),
+                          if (post.getText().isNotEmpty) PostText(post),
+                          if (post.images.isNotEmpty) PostImages(post),
                         ],
                       ),
                     ),
@@ -292,8 +292,8 @@ class PostTile extends HookWidget {
   }
 }
 
-class PostTileText extends HookWidget {
-  const PostTileText(this.post, {super.key});
+class PostText extends HookWidget {
+  const PostText(this.post, {super.key});
 
   final PostData post;
 
@@ -331,19 +331,18 @@ class PostTileText extends HookWidget {
                   style: mainTextStyle.merge(clickableTextStyle),
                 ),
               ],
-            ),
-          // else
-          //   post.data.html
-          //       ? WidgetSpan(child: Html(data: post.getText()))
-          //       : TextSpan(text: post.getText(), style: mainTextStyle),
-          if (!post.error.value) ...linkifyTextSpan(context, post),
+            )
+          else if (post.data.html)
+            WidgetSpan(child: Html(data: post.getText()))
+          else
+            ...linkifyTextSpan(post),
         ],
       ),
     );
   }
 }
 
-List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
+List<InlineSpan> linkifyTextSpan(PostData post) {
   final opt = const LinkifyOptions(humanize: false);
   final linkifies = linkify(post.getText(), options: opt);
   final spans = linkifies.expand((e) {
@@ -356,14 +355,14 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
 
     final link = post.getLink(e.url);
     final nonNulls = [link?.title, link?.desc, link?.image].nonNulls;
-    if (link == null || nonNulls.isEmpty) {
+    if (link == null || nonNulls.isEmpty || post.original) {
       return [
-        if (link == null)
+        if (link == null && !post.original)
           const WidgetSpan(
             alignment: PlaceholderAlignment.baseline,
             baseline: TextBaseline.alphabetic,
             child: Padding(
-              padding: EdgeInsets.only(right: 4),
+              padding: EdgeInsets.only(left: 2, right: 4),
               child: SizedBox.square(
                 dimension: 14,
                 child: CircularProgressIndicator(strokeWidth: 2),
@@ -374,11 +373,11 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 2),
-              child: link.icon == null
+              padding: EdgeInsets.only(left: 2, right: 4),
+              child: link?.icon == null
                   ? Icon(Icons.link, size: 16)
                   : Image.memory(
-                      link.icon!.data,
+                      link!.icon!.data,
                       height: 16,
                       fit: BoxFit.cover,
                     ),
@@ -392,7 +391,7 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
         ),
       ];
     } else if (nonNulls.isNotEmpty && nonNulls.first == link.image) {
-      var maxWidth = 600.0;
+      final maxWidth = 600.0;
       return [
         WidgetSpan(
           child: ConstrainedBox(
@@ -406,14 +405,14 @@ List<InlineSpan> linkifyTextSpan(BuildContext context, PostData post) {
         ),
       ];
     } else {
-      return [WidgetSpan(child: PostTileLinkCard(link))];
+      return [WidgetSpan(child: PostLinkCard(link))];
     }
   });
   return spans.cast<InlineSpan>().toList();
 }
 
-class PostTileLinkCard extends HookWidget {
-  const PostTileLinkCard(this.link, {super.key});
+class PostLinkCard extends HookWidget {
+  const PostLinkCard(this.link, {super.key});
 
   final LinkData link;
 
@@ -467,10 +466,13 @@ class PostTileLinkCard extends HookWidget {
                               if (link.icon != null)
                                 WidgetSpan(
                                   alignment: PlaceholderAlignment.middle,
-                                  child: Image.memory(
-                                    link.icon!.data,
-                                    height: 18,
-                                    fit: BoxFit.cover,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: Image.memory(
+                                      link.icon!.data,
+                                      height: 18,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 ),
                               TextSpan(
@@ -519,8 +521,8 @@ class PostTileLinkCard extends HookWidget {
   }
 }
 
-class PostTileHeadbar extends HookWidget {
-  const PostTileHeadbar(this.post, {super.key});
+class PostHeadbar extends HookWidget {
+  const PostHeadbar(this.post, {super.key});
 
   final PostData post;
 
@@ -556,7 +558,7 @@ class PostTileHeadbar extends HookWidget {
             child: AppLink(
               root: group,
               paths: ['$number', 'post', '$index'],
-              child: PostTileReplyState(post),
+              child: PostReplyState(post),
             ),
           ),
           AlignRightSizedBox(
@@ -574,8 +576,8 @@ class PostTileHeadbar extends HookWidget {
   }
 }
 
-class PostTileReplyState extends HookWidget {
-  const PostTileReplyState(this.post, {super.key});
+class PostReplyState extends HookWidget {
+  const PostReplyState(this.post, {super.key});
 
   final PostData post;
 
@@ -635,8 +637,8 @@ class AlignRightSizedBox extends StatelessWidget {
   }
 }
 
-class PostTileQuote extends HookWidget {
-  const PostTileQuote(this.post, {super.key});
+class PostQuote extends HookWidget {
+  const PostQuote(this.post, {super.key});
 
   final PostData post;
 
@@ -696,7 +698,7 @@ class PostTileQuote extends HookWidget {
                     ],
                   ),
                 ),
-                if (post.images.isNotEmpty) PostTilePreviews(post),
+                if (post.images.isNotEmpty) PostImagePreviews(post),
               ],
             ),
           ),
@@ -706,8 +708,8 @@ class PostTileQuote extends HookWidget {
   }
 }
 
-class PostTileImages extends HookWidget {
-  const PostTileImages(this.post, {super.key});
+class PostImages extends HookWidget {
+  const PostImages(this.post, {super.key});
 
   final PostData post;
 
@@ -727,18 +729,15 @@ class PostTileImages extends HookWidget {
                         child: CircularProgressIndicator(),
                       ),
                     )
-                  : Image.memory(
-                      e.data,
-                      width: e.size.width > 600 ? 600 : null,
-                    ),
+                  : PostImage(e),
             ),
       ],
     );
   }
 }
 
-class PostTilePreviews extends HookWidget {
-  const PostTilePreviews(this.post, {super.key});
+class PostImagePreviews extends HookWidget {
+  const PostImagePreviews(this.post, {super.key});
 
   final PostData post;
 
@@ -758,8 +757,72 @@ class PostTilePreviews extends HookWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                  : Image.memory(e.data, height: 100, fit: BoxFit.cover),
+                  : PostImage.mini(e),
             ),
+      ],
+    );
+  }
+}
+
+class PostImage extends HookWidget {
+  const PostImage(this.image, {super.key}) : mini = false;
+  const PostImage.mini(this.image, {super.key}) : mini = true;
+
+  final ImageData image;
+  final bool mini;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = mini
+        ? null
+        : image.size.width > 600.0
+        ? 600.0
+        : null;
+    final height = mini ? 100.0 : null;
+    final showOcr = useState(false);
+    final scrollController = useScrollController();
+    return Stack(
+      children: [
+        Image.memory(
+          image.data,
+          width: width,
+          height: height,
+          fit: mini ? BoxFit.cover : null,
+        ),
+        if (image.ocr != null && !mini && showOcr.value)
+          Positioned.fill(
+            left: -1,
+            top: -1,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.8),
+              child: Scrollbar(
+                controller: scrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                thickness: 8,
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: ClampingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(image.ocr!, style: mainTextStyle),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (image.ocr != null && !mini)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Opacity(
+              opacity: showOcr.value ? 0.8 : 0.5,
+              child: FloatingActionButton.small(
+                onPressed: () => showOcr.value = !showOcr.value,
+                child: Icon(Icons.document_scanner),
+              ),
+            ),
+          ),
       ],
     );
   }

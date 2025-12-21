@@ -113,6 +113,10 @@ class PostData extends ChangeNotifier {
     notifyListeners();
   }
 
+  ImageData? getImage(String id) {
+    return _images[id]?.value;
+  }
+
   void setImage(String id, ImageData data) {
     if (!_images.containsKey(id)) return;
     if (_images[id]?.value == null) {
@@ -182,10 +186,11 @@ class PostData extends ChangeNotifier {
 }
 
 class ImageData {
-  // String name;
+  String name;
   Uint8List data;
   Size size;
-  ImageData(this.data, this.size);
+  String? ocr;
+  ImageData(this.name, this.data, this.size, this.ocr);
 }
 
 class LinkData {
@@ -440,14 +445,14 @@ class PostStore {
   Future<void> _loadTextFile(PostData post) async {
     if (post.data.textFile == null) return;
     final cloud = Modular.get<CloudService>();
-    final data = await cloud.getFile(post.data.textFile!);
+    final (_, data) = await cloud.getFile(post.data.textFile!);
     post.setText(utf8.decode(data));
   }
 
   Future<void> loadImage(PostData post) async {
-    print(post.data.index);
     if (!post.synced.value) return;
     for (var id in post.data.files) {
+      if (post.getImage(id) != null) return;
       final image = await _loadImageData(id);
       post.setImage(id, image);
     }
@@ -455,14 +460,18 @@ class PostStore {
 
   Future<ImageData> _loadImageData(String id) async {
     final cloud = Modular.get<CloudService>();
-    final data = await cloud.getFile(id);
-    final size = await getImageSize(data);
-    return ImageData(data, size);
+    final (name, bytes) = await cloud.getFile(id);
+    final size = await getImageSize(bytes);
+    final hash = sha3_256.convert(bytes).hex();
+    final data = await cloud.getDatas(hash);
+    final ocr = data?['ocr'] as String?;
+    return ImageData(name, bytes, size, ocr);
   }
 
   Future<void> processLink(PostData post) async {
     if (!post.synced.value) return;
     for (var url in post.urls) {
+      if (post.getLink(url) != null) return;
       final link = await _getLinkData(url);
       if (link != null) post.setLink(url, link);
     }

@@ -70,20 +70,22 @@ class ShowMoreBox extends HookWidget {
           ),
         ),
         if (more || showMore.value)
-          Padding(
-            padding: EdgeInsets.only(bottom: mini ? 0 : 8),
-            child: mini
-                ? InkWell(
-                    onTap: () => showMore.value = !showMore.value,
-                    child: Text(
-                      text,
-                      style: miniTextStyle.merge(clickableTextStyle),
+          SelectionContainer.disabled(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: mini ? 0 : 8),
+              child: mini
+                  ? InkWell(
+                      onTap: () => showMore.value = !showMore.value,
+                      child: Text(
+                        text,
+                        style: miniTextStyle.merge(clickableTextStyle),
+                      ),
+                    )
+                  : OutlinedButton(
+                      onPressed: () => showMore.value = !showMore.value,
+                      child: Text(text),
                     ),
-                  )
-                : OutlinedButton(
-                    onPressed: () => showMore.value = !showMore.value,
-                    child: Text(text),
-                  ),
+            ),
           ),
       ],
     );

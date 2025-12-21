@@ -271,7 +271,9 @@ class CloudService {
     return json.decode(link.responseBody) as RowData?;
   }
 
-  Future<Uint8List> getFile(String id) async {
-    return await storage.getFileDownload(bucketId: 'elaine', fileId: id);
+  Future<(String, Uint8List)> getFile(String id) async {
+    final file = await storage.getFile(bucketId: 'elaine', fileId: id);
+    final bytes = await storage.getFileDownload(bucketId: 'elaine', fileId: id);
+    return (file.name, bytes);
   }
 }
