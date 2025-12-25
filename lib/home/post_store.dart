@@ -32,8 +32,8 @@ class PostData extends ChangeNotifier {
   ValueListenable<PostData?> get quote => _quote;
   final _quote = ValueNotifier<PostData?>(null);
 
-  Iterable<ValueNotifier<ImageData?>> get images => _images.values;
-  Map<String, ValueNotifier<ImageData?>> _images = {};
+  Iterable<ValueNotifier<FileData?>> get images => _images.values;
+  Map<String, ValueNotifier<FileData?>> _images = {};
 
   Iterable<String> get urls => _links.keys;
   Iterable<ValueNotifier<LinkData?>> get links => _links.values;
@@ -54,6 +54,9 @@ class PostData extends ChangeNotifier {
   int get total => _total;
   int _total = 0;
 
+  ThreadData? get thread => _thread;
+  final ThreadData? _thread;
+
   List<PostData> get children => _children;
   final _children = <PostData>[];
 
@@ -62,10 +65,13 @@ class PostData extends ChangeNotifier {
   bool _visiblePending = false;
   Timer? _visibleTimer;
 
-  PostData(Post post) : _data = post, _total = post.total {
+  PostData(Post post, ThreadData? thread)
+    : _data = post,
+      _total = post.total,
+      _thread = thread {
     if (post.text == null) return;
     _sync.value = post.textFile == null;
-    _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
+    _images = {for (var id in post.files) id: ValueNotifier<FileData?>(null)};
     runLinkify();
   }
 
@@ -78,7 +84,7 @@ class PostData extends ChangeNotifier {
   void syncFrom(Post post) {
     _data = post;
     _sync.value = post.textFile == null;
-    _images = {for (var id in post.files) id: ValueNotifier<ImageData?>(null)};
+    _images = {for (var id in post.files) id: ValueNotifier<FileData?>(null)};
     runLinkify();
     setVisible(_visiblePending);
     notifyListeners();
@@ -113,11 +119,11 @@ class PostData extends ChangeNotifier {
     notifyListeners();
   }
 
-  ImageData? getImage(String id) {
+  FileData? getImage(String id) {
     return _images[id]?.value;
   }
 
-  void setImage(String id, ImageData data) {
+  void setImage(String id, FileData data) {
     if (!_images.containsKey(id)) return;
     if (_images[id]?.value == null) {
       _images[id]?.value = data;
@@ -185,20 +191,21 @@ class PostData extends ChangeNotifier {
   }
 }
 
-class ImageData {
+class FileData {
   String name;
   Uint8List data;
-  Size size;
+  bool image;
+  Size? size;
   String? ocr;
-  ImageData(this.name, this.data, this.size, this.ocr);
+  FileData(this.name, this.data, this.image, this.size, this.ocr);
 }
 
 class LinkData {
   String url;
   String? title;
   String? desc;
-  ImageData? icon;
-  ImageData? image;
+  FileData? icon;
+  FileData? image;
   LinkData(this.url, this.title, this.desc, this.icon, this.image);
 }
 
@@ -217,8 +224,6 @@ class PostStore {
   PostData? _selected;
   int get index => _index;
   int _index = 0;
-  int get read => _read;
-  int _read = 0;
 
   ValueListenable<bool> get postMode => _postMode;
   final _postMode = ValueNotifier<bool>(false);
@@ -229,6 +234,7 @@ class PostStore {
 
   String? _cursorStart;
   String? _cursorEnd;
+  ThreadData? _thread;
 
   Listenable get all => Listenable.merge(_map.values);
 
@@ -240,7 +246,7 @@ class PostStore {
     final threads = Modular.get<ThreadStore>();
     final thread = threads.selected;
     if (thread == null) return;
-    _read = threads.selected?.read.value ?? 0;
+    _thread = threads.selected;
 
     if (!postMode && index == 0) {
       _reachEnd = false;
@@ -250,7 +256,7 @@ class PostStore {
     final cloud = Modular.get<CloudService>();
     final post = await cloud.getPost(thread.data.msgid, index);
     if (post == null) return;
-    final data = _map.putIfAbsent(post.msgid, () => PostData(post));
+    final data = _map.putIfAbsent(post.msgid, () => PostData(post, _thread));
     _index = index;
     _selected = data;
 
@@ -279,7 +285,7 @@ class PostStore {
 
   void refresh() {
     final threads = Modular.get<ThreadStore>();
-    _read = threads.selected?.read.value ?? 0;
+    _thread = threads.selected;
     _reachEnd = false;
     _cursorEnd = pItems.value.lastOrNull?.data.id;
     loadMore();
@@ -336,13 +342,11 @@ class PostStore {
       }
     }
 
-    final posts = items.map((e) => PostData(e)).toList();
+    final posts = items.map((e) => PostData(e, _thread)).toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
-    // if (!postMode.value || add.isNotEmpty) {
     _map.addAll({for (var post in add) post.data.msgid: post});
     reverse ? _nItems.append(posts.reversed) : _pItems.append(posts);
     _setupPosts(posts);
-    // }
   }
 
   void toggleExpand(PostData post) {
@@ -363,7 +367,7 @@ class PostStore {
       cursor: post.children.lastOrNull?.data.id,
     );
     final posts = items
-        .map((e) => PostData(e)..setLevel(post.level + 1))
+        .map((e) => PostData(e, _thread)..setLevel(post.level + 1))
         .toList();
     final add = posts.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var post in add) post.data.msgid: post});
@@ -433,7 +437,7 @@ class PostStore {
       final items = await cloud.getPostsByMsgids([qMsgid]);
       final quote = items.firstOrNull;
       if (quote != null) {
-        final data = PostData(quote);
+        final data = PostData(quote, _thread);
         _map[qMsgid] = data;
         _setupPosts([data]);
       }
@@ -453,19 +457,26 @@ class PostStore {
     if (!post.synced.value) return;
     for (var id in post.data.files) {
       if (post.getImage(id) != null) return;
-      final image = await _loadImageData(id);
-      post.setImage(id, image);
+      final file = await _loadImageData(id);
+      post.setImage(id, file);
     }
   }
 
-  Future<ImageData> _loadImageData(String id) async {
+  Future<FileData> _loadImageData(String id) async {
     final cloud = Modular.get<CloudService>();
-    final (name, bytes) = await cloud.getFile(id);
-    final size = await getImageSize(bytes);
-    final hash = sha3_256.convert(bytes).hex();
-    final data = await cloud.getDatas(hash);
-    final ocr = data?['ocr'] as String?;
-    return ImageData(name, bytes, size, ocr);
+    final (file, bytes) = await cloud.getFile(id);
+    if (!file.mimeType.startsWith('image/')) {
+      return FileData(file.name, bytes, false, null, null);
+    }
+    try {
+      final size = await getImageSize(bytes);
+      final hash = sha3_256.convert(bytes).hex();
+      final data = await cloud.getDatas(hash);
+      final ocr = data?['ocr'] as String?;
+      return FileData(file.name, bytes, true, size, ocr);
+    } catch (_) {
+      return FileData('error', missingIcon, true, Size(16, 16), null);
+    }
   }
 
   Future<void> processLink(PostData post) async {
@@ -489,12 +500,12 @@ class PostStore {
     }
     final title = data['title'];
     final desc = data['desc'];
-    ImageData? iconData;
+    FileData? iconData;
     if (data['icon'] != null) {
       final icon = await cloud.getDatas(data['icon']);
       if (icon != null) iconData = await _loadImageData(icon['file']);
     }
-    ImageData? imageData;
+    FileData? imageData;
     if (data['image'] != null) {
       final image = await cloud.getDatas(data['image']);
       if (image != null) imageData = await _loadImageData(image['file']);

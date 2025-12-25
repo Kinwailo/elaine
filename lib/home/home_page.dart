@@ -9,9 +9,11 @@ import '../services/data_store.dart';
 import '../widgets/chip_item.dart';
 import 'group_store.dart';
 import 'post_store.dart';
+import 'settings_dialog.dart';
 import 'thread_list.dart';
 import 'post_list.dart';
 import 'thread_store.dart';
+import 'write_store.dart';
 
 class HomeModule extends Module {
   @override
@@ -20,6 +22,7 @@ class HomeModule extends Module {
     i.addSingleton(GroupStore.new);
     i.addSingleton(ThreadStore.new);
     i.addSingleton(PostStore.new);
+    i.addSingleton(WriteStore.new);
   }
 
   @override
@@ -35,7 +38,7 @@ class HomeModule extends Module {
         ),
         ChildRoute(
           '/settings',
-          child: (_) => const ThreadList(key: ValueKey('ThreadList')),
+          child: (_) => const SettingsDialog(key: ValueKey('SettingsPage')),
           transition: TransitionType.noTransition,
         ),
         ChildRoute(
@@ -177,7 +180,10 @@ class SideBar extends HookWidget {
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
-          IconButton(onPressed: () {}, icon: const Icon(Icons.settings)),
+          IconButton(
+            onPressed: () => SettingsDialog.show(context),
+            icon: const Icon(Icons.settings),
+          ),
           SideBarGroup(
             name: uiOrder,
             child: Column(

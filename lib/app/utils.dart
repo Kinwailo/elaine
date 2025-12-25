@@ -27,6 +27,7 @@ Future<Size> getImageSize(Uint8List data) async {
           (i, _) => completer.complete(
             Size(i.image.width.toDouble(), i.image.height.toDouble()),
           ),
+          onError: (e, _) => completer.completeError(e),
         ),
       );
   return completer.future;

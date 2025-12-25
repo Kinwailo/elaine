@@ -25,10 +25,14 @@ class ThreadData {
   Thread get data => _data;
   final Thread _data;
 
+  GroupData? get group => _group;
+  final GroupData? _group;
+
   final DataValue _dataValue;
 
-  ThreadData(Thread thread)
+  ThreadData(Thread thread, GroupData? group)
     : _data = thread,
+      _group = group,
       _dataValue = DataValue(thread.group, '${thread.number}') {
     _latestRead = parseDateTime(_dataValue.get('latestRead'));
     _read.value = _dataValue.get('read') ?? 0;
@@ -108,7 +112,10 @@ class ThreadStore {
         thread = await cloud.getThread(group, number);
       }
       if (thread == null) return;
-      final data = _map.putIfAbsent(thread.msgid, () => ThreadData(thread!));
+      final data = _map.putIfAbsent(
+        thread.msgid,
+        () => ThreadData(thread!, groups.get(thread.group)),
+      );
       _selected = data;
 
       if (_tile.value == null) {
@@ -177,7 +184,9 @@ class ThreadStore {
       _cursorEnd = _reachEnd ? null : items.last.id;
     }
 
-    final threads = items.map((e) => ThreadData(e)).toList();
+    final threads = items
+        .map((e) => ThreadData(e, groups.get(e.group)))
+        .toList();
     final add = threads.whereNot((e) => _map.containsKey(e.data.msgid));
     _map.addAll({for (var thread in add) thread.data.msgid: thread});
     reverse ? _nItems.append(threads.reversed) : _pItems.append(threads);

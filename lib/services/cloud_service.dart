@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/enums.dart';
+import 'package:appwrite/models.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -261,19 +262,33 @@ class CloudService {
   }
 
   Future<RowData?> getLink(String url) async {
-    final link = await functions.createExecution(
+    final res = await functions.createExecution(
       functionId: 'elaine_worker',
       xasync: false,
       method: ExecutionMethod.pOST,
       headers: {'content-type': 'application/json'},
       body: '{"action":"grab_link","data":"$url"}',
     );
-    return json.decode(link.responseBody) as RowData?;
+    if (res.responseStatusCode != 200) return null;
+    return jsonDecode(res.responseBody) as RowData?;
   }
 
-  Future<(String, Uint8List)> getFile(String id) async {
+  Future<(File, Uint8List)> getFile(String id) async {
     final file = await storage.getFile(bucketId: 'elaine', fileId: id);
     final bytes = await storage.getFileDownload(bucketId: 'elaine', fileId: id);
-    return (file.name, bytes);
+    return (file, bytes);
+  }
+
+  Future<RowData?> createPost(Map data) async {
+    final json = jsonEncode(data);
+    final res = await functions.createExecution(
+      functionId: 'elaine_worker',
+      xasync: false,
+      method: ExecutionMethod.pOST,
+      headers: {'content-type': 'application/json'},
+      body: '{"action":"create_post","data":$json}',
+    );
+    if (res.responseStatusCode != 200) return null;
+    return jsonDecode(res.responseBody) as RowData?;
   }
 }

@@ -28,6 +28,8 @@ dependencies:
   bit_array: ^2.3.0
   linkify: ^5.0.0
   hashlib: ^2.2.0
+  image: ^4.7.2
+  file_picker: ^10.3.8
 
 dev_dependencies:
   flutter_test:

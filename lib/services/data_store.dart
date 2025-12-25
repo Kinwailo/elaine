@@ -65,6 +65,10 @@ class DataValue extends ChangeNotifier {
     _data = data == null ? {} : json.decode(data);
   }
 
+  Iterable<String> list() {
+    return _data?.keys ?? [];
+  }
+
   T? get<T>(String key) {
     return _data?[key] as T?;
   }

@@ -94,12 +94,14 @@ class GroupStore {
     _selected.value = items.value.firstWhereOrNull(
       (e) => e.data.group == group,
     );
+    await update();
+
     _completer?.complete();
     final threads = Modular.get<ThreadStore>();
     threads.refresh();
   }
 
-  Future<void> refresh() async {
+  Future<List<Group>> update() async {
     final cloud = Modular.get<CloudService>();
     final groups = await cloud.getGroups(subscribed.map((e) => e.data.group));
     for (var g in subscribed) {
@@ -107,6 +109,11 @@ class GroupStore {
       final group = groups.firstWhereOrNull((e) => e.group == g.data.group);
       if (group != null) g._number = group.number;
     }
+    return groups;
+  }
+
+  Future<void> refresh() async {
+    final groups = await update();
 
     _refreshing.value = true;
     final threads = Modular.get<ThreadStore>();
@@ -125,6 +132,7 @@ class GroupStore {
       return;
     }
 
+    final cloud = Modular.get<CloudService>();
     final numbers = await cloud.checkGroups(updates.map((e) => e.group));
     _refreshing.value = false;
 

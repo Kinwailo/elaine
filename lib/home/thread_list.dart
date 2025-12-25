@@ -14,6 +14,8 @@ import '../widgets/app_link.dart';
 import 'group_store.dart';
 import 'post_store.dart';
 import 'thread_store.dart';
+import 'write_dialog.dart';
+import 'write_store.dart';
 
 class ThreadList extends HookWidget {
   const ThreadList({super.key});
@@ -120,7 +122,11 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
       actionsPadding: EdgeInsets.only(right: 2),
       actions: [
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            final write = Modular.get<WriteStore>();
+            write.create(null);
+            WriteDialog.show(context);
+          },
           icon: Icon(Icons.create),
           padding: EdgeInsetsGeometry.all(0),
           style: IconButton.styleFrom(

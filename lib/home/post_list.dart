@@ -18,6 +18,8 @@ import '../widgets/show_more_box.dart';
 import 'group_store.dart';
 import 'post_store.dart';
 import 'thread_store.dart';
+import 'write_dialog.dart';
+import 'write_store.dart';
 
 class PostList extends HookWidget {
   const PostList({super.key});
@@ -199,11 +201,12 @@ class PostTile extends HookWidget {
 
     final group = groups.get(threads.selected?.data.group ?? '');
     final lastRefresh = group?.lastRefresh ?? refDateTime;
-    final isUnread = posts.read > 0 && post.data.index >= posts.read;
+    final threadRead = post.thread?.read.value ?? 0;
+    final isUnread = threadRead > 0 && post.data.index >= threadRead;
     final isNew =
         isUnread &&
-        posts.read > 0 &&
-        posts.read < (threads.selected?.data.total ?? 0) &&
+        threadRead > 0 &&
+        threadRead < (threads.selected?.data.total ?? 0) &&
         (post.data.date.isAfter(lastRefresh) ||
             post.data.create.isAfter(lastRefresh));
 
@@ -380,6 +383,7 @@ List<InlineSpan> linkifyTextSpan(PostData post) {
                       link!.icon!.data,
                       height: 16,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => SizedBox.shrink(),
                     ),
             ),
           ),
@@ -472,6 +476,8 @@ class PostLinkCard extends HookWidget {
                                       link.icon!.data,
                                       height: 18,
                                       fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) =>
+                                          SizedBox.shrink(),
                                     ),
                                   ),
                                 ),
@@ -546,7 +552,18 @@ class PostHeadbar extends HookWidget {
           ),
           Spacer(),
           Tooltip(
-            message: '原文',
+            message: replyText,
+            child: InkWell(
+              onTap: () {
+                final write = Modular.get<WriteStore>();
+                write.create(post);
+                WriteDialog.show(context);
+              },
+              child: Icon(Icons.reply, size: 16),
+            ),
+          ),
+          Tooltip(
+            message: originalText,
             child: InkWell(
               onTap: () => post.toggleOriginal(),
               child: Text('📃', style: subTextStyle),
@@ -729,7 +746,9 @@ class PostImages extends HookWidget {
                         child: CircularProgressIndicator(),
                       ),
                     )
-                  : PostImage(e),
+                  : e.image
+                  ? PostImage(e)
+                  : SizedBox.shrink(),
             ),
       ],
     );
@@ -757,7 +776,9 @@ class PostImagePreviews extends HookWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                  : PostImage.mini(e),
+                  : e.image
+                  ? PostImage.mini(e)
+                  : SizedBox.shrink(),
             ),
       ],
     );
@@ -768,17 +789,21 @@ class PostImage extends HookWidget {
   const PostImage(this.image, {super.key}) : mini = false;
   const PostImage.mini(this.image, {super.key}) : mini = true;
 
-  final ImageData image;
+  final FileData image;
   final bool mini;
 
   @override
   Widget build(BuildContext context) {
     final width = mini
         ? null
-        : image.size.width > 600.0
+        : image.size!.width > 600.0
         ? 600.0
         : null;
-    final height = mini ? 100.0 : null;
+    final height = mini
+        ? image.size!.height > 100.0
+              ? 100.0
+              : null
+        : null;
     final showOcr = useState(false);
     final scrollController = useScrollController();
     return Stack(
