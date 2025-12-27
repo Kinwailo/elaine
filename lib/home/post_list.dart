@@ -201,12 +201,11 @@ class PostTile extends HookWidget {
 
     final group = groups.get(threads.selected?.data.group ?? '');
     final lastRefresh = group?.lastRefresh ?? refDateTime;
-    final threadRead = post.thread?.read.value ?? 0;
-    final isUnread = threadRead > 0 && post.data.index >= threadRead;
+    final isUnread = posts.read > 0 && post.data.index >= posts.read;
     final isNew =
         isUnread &&
-        threadRead > 0 &&
-        threadRead < (threads.selected?.data.total ?? 0) &&
+        posts.read > 0 &&
+        posts.read < (threads.selected?.data.total ?? 0) &&
         (post.data.date.isAfter(lastRefresh) ||
             post.data.create.isAfter(lastRefresh));
 

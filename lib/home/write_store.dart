@@ -46,11 +46,15 @@ class WriteStore {
   String rawQuote = '';
   List<String> references = [];
 
+  String? error;
+  bool succuss = false;
+
   final postData = ValueNotifier<PostData?>(null);
   final images = ValueNotifier(<ImageData>[]);
   final selectedFile = ValueNotifier<ImageData?>(null);
   final resizing = ValueNotifier(false);
   final sendable = ValueNotifier(false);
+  final sending = ValueNotifier(false);
 
   static const scaleList = [0.16, 0.25, 0.33, 0.50, 0.66, 0.75, 0.90, 1.00];
 
@@ -64,6 +68,9 @@ class WriteStore {
       _group = post.thread?.group;
     }
     postData.value = post;
+    succuss = false;
+    error = null;
+    updateSendable();
 
     var re = RegExp(r'^(Re: ?)*');
     var text = post?.thread?.data.subject ?? '';
@@ -81,20 +88,25 @@ class WriteStore {
   }
 
   String getTitle() {
+    if (postData.value != null) {
+      return '$replyPostText$colonText${postData.value?.thread?.data.subject ?? ''}';
+    }
     final group = _group?.data.name ?? '';
-    return '$newPostText $group';
+    return '$newPostText$colonText$group';
   }
 
   void updateSendable() {
     sendable.value =
+        !succuss &&
         name.isNotEmpty &&
         email.isNotEmpty &&
         subject.isNotEmpty &&
         (body.isNotEmpty || images.value.isNotEmpty);
   }
 
-  void quoteAll() {
+  String quoteAll() {
     quote = rawQuote;
+    return quote;
   }
 
   int getChop() {
@@ -176,18 +188,25 @@ class WriteStore {
   }
 
   Future<void> send() async {
+    error = null;
+    sending.value = true;
+
     var content = body;
     if (enableSignature && signature.isNotEmpty) {
       content += '\n\n--\n$signature';
     }
     if (enableQuote && quote.isNotEmpty) {
       content +=
-          '\n\n${postData.value?.data.sender ?? 'Someone'} wrote: \n$quote';
+          '\n\n${postData.value?.data.sender ?? quoteSomeoneText}$quoteWriteText$colonText\n$quote';
     }
     if (images.value.isNotEmpty) content += '\n';
 
     final group = _group?.data.group;
-    if (group == null) return;
+    if (group == null) {
+      error = '$writeErrorText$colonText$writeNoGroupText';
+      sending.value = false;
+      return;
+    }
 
     final sendData = {
       'From': '$name <$email>',
@@ -196,10 +215,19 @@ class WriteStore {
       'References': references,
       'Content': content,
       'files': images.value
-          .map((e) => {'btyes': base64Encode(e.imageData), 'name': e.filename})
+          .map((e) => {'bytes': base64Encode(e.imageData), 'name': e.filename})
           .toList(),
     };
     final cloud = Modular.get<CloudService>();
     final res = await cloud.createPost(sendData);
+    if (res == null) {
+      error = '$writeErrorText$colonText$writeResErrorText';
+    } else if (res.containsKey('error')) {
+      error = '$writeErrorText$colonText${res['error']}';
+    } else {
+      succuss = true;
+    }
+    sending.value = false;
+    updateSendable();
   }
 }

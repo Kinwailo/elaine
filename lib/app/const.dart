@@ -22,8 +22,9 @@ const syncOverviewFinishText = '同步完成，請重新整理以觀看。';
 const syncTimeoutText = '等候逾時，請稍後再嘗試。';
 const retryText = '重新載入';
 
-const newPostText = '發文於群組：';
-const replyPostText = '回覆於主題：';
+const colonText = '：';
+const newPostText = '發文於群組';
+const replyPostText = '回覆於主題';
 const nameText = '名字';
 const emailText = '電郵';
 const subjectText = '主題';
@@ -34,6 +35,19 @@ const quoteText = '引文';
 const enterIdentityText = '輸入新身份';
 const orText = '或';
 const emptyInputText = '未輸入';
+const quoteSomeoneText = '有人';
+const quoteWriteText = '寫下';
+const charChoppedText = '個文字被削減了';
+const quoteAllText = '回復引文';
+const removeImageText = '移除';
+const hqImageText = '高品質';
+const originalImageText = '原圖';
+const writeSuccessText = '發文完成';
+const writeErrorText = '發文錯誤';
+const writeNoGroupText = '沒有指定群組';
+const writeResErrorText = '伺服器回應不成功';
+
+const settingsText = '設定';
 
 const mainTextStyle = TextStyle(fontSize: 18);
 const subTextStyle = TextStyle(color: Colors.grey, fontSize: 14);

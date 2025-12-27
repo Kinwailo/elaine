@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app/app_theme.dart';
 import 'home/home_page.dart';
@@ -39,6 +40,22 @@ class AppWidget extends StatelessWidget {
       darkTheme: AppTheme.dark,
       routeInformationParser: Modular.routeInformationParser,
       routerDelegate: Modular.routerDelegate,
+      localizationsDelegates: [
+        ...GlobalMaterialLocalizations.delegates,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: [
+        const Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hant',
+          countryCode: 'TW',
+        ),
+        const Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hant',
+          countryCode: 'HK',
+        ),
+      ],
     );
   }
 }

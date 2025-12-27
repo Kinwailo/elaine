@@ -28,60 +28,60 @@ class ThreadList extends HookWidget {
     final extraBackward = threads.reachStart ? 0 : 1;
     final countForward = threads.pItems.length;
     final extraForward = threads.reachEnd ? 0 : 1;
-    // estimateTextHeight('（）', mainTextStyle);
+    estimateTextHeight('（）', mainTextStyle);
     final controller = useScrollController();
-    final anim = useAnimationController(duration: 200.ms);
-    useAnimation(anim);
     useListenable(threads.nItems);
     useListenable(threads.pItems);
     return Row(
       children: [
         SizedBox(
           width: 400,
-          child: Scaffold(
-            appBar: ThreadAppBar(anim),
-            body: Scrollbar(
-              controller: controller,
-              thumbVisibility: true,
-              trackVisibility: true,
-              thickness: 8,
-              child: CustomScrollView(
-                center: centerKey,
+          child: ScaffoldMessenger(
+            child: Scaffold(
+              appBar: ThreadAppBar(),
+              body: Scrollbar(
                 controller: controller,
-                physics: AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.only(right: 12),
-                    sliver: SuperSliverList.builder(
-                      itemCount: countBackward + extraBackward,
-                      itemBuilder: (_, index) {
-                        return index >= countBackward
-                            ? MoreThreads(key: UniqueKey(), prepend: true)
-                            : ThreadTile(
-                                key: ValueKey(threads.nItems[index]),
-                                index + 1,
-                                threads.nItems[index],
-                              );
-                      },
+                thumbVisibility: true,
+                trackVisibility: true,
+                thickness: 8,
+                child: CustomScrollView(
+                  center: centerKey,
+                  controller: controller,
+                  physics: AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.only(right: 12),
+                      sliver: SuperSliverList.builder(
+                        itemCount: countBackward + extraBackward,
+                        itemBuilder: (_, index) {
+                          return index >= countBackward
+                              ? MoreThreads(key: UniqueKey(), prepend: true)
+                              : ThreadTile(
+                                  key: ValueKey(threads.nItems[index]),
+                                  index + 1,
+                                  threads.nItems[index],
+                                );
+                        },
+                      ),
                     ),
-                  ),
-                  SliverPadding(
-                    key: centerKey,
-                    padding: EdgeInsets.only(right: 12),
-                    sliver: SuperSliverList.builder(
-                      itemCount: countForward + extraForward,
-                      itemBuilder: (_, index) {
-                        return index >= countForward
-                            ? MoreThreads(key: UniqueKey())
-                            : ThreadTile(
-                                key: ValueKey(threads.pItems[index]),
-                                index,
-                                threads.pItems[index],
-                              );
-                      },
+                    SliverPadding(
+                      key: centerKey,
+                      padding: EdgeInsets.only(right: 12),
+                      sliver: SuperSliverList.builder(
+                        itemCount: countForward + extraForward,
+                        itemBuilder: (_, index) {
+                          return index >= countForward
+                              ? MoreThreads(key: UniqueKey())
+                              : ThreadTile(
+                                  key: ValueKey(threads.pItems[index]),
+                                  index,
+                                  threads.pItems[index],
+                                );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -94,31 +94,75 @@ class ThreadList extends HookWidget {
 }
 
 class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
-  ThreadAppBar(this.anim, {super.key});
-
-  final AnimationController anim;
+  const ThreadAppBar({super.key});
 
   @override
-  Size get preferredSize =>
-      Size.fromHeight(kToolbarHeight - 12 + _syncStateBar.preferredSize.height);
-
-  late final SyncStateBar _syncStateBar = SyncStateBar(anim);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight - 12 + 1);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).appBarTheme;
     final groups = Modular.get<GroupStore>();
     final refreshing = groups.refreshing.value;
     final syncNew = groups.syncNew.value;
+    final syncTotal = groups.syncTotal.value;
+    final msg = syncTotal > 0
+        ? syncOverviewText.format([syncTotal])
+        : syncTotal == 0
+        ? syncOverviewFinishText
+        : syncTimeoutText;
+    useListenable(groups.syncTotal);
     useListenable(groups.refreshing);
     useListenable(groups.syncNew);
+    useValueChanged(syncTotal, (_, void _) {
+      final messenger = ScaffoldMessenger.of(context);
+      syncTotal > 0
+          ? Future(
+              () => messenger.showMaterialBanner(
+                MaterialBanner(
+                  backgroundColor: theme.backgroundColor,
+                  padding: EdgeInsets.all(0),
+                  margin: EdgeInsets.all(0),
+                  contentTextStyle: pinnedTextStyle.merge(
+                    syncTotal == -1
+                        ? errorTextStyle
+                        : TextStyle(color: theme.foregroundColor),
+                  ),
+                  content: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(msg),
+                        Spacer(),
+                        CircularProgressIndicator(
+                          strokeWidth: 2,
+                          constraints: BoxConstraints.expand(
+                            width: 16,
+                            height: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: <Widget>[SizedBox.shrink()],
+                  forceActionsBelow: true,
+                  minActionBarHeight: 0,
+                ),
+              ),
+            )
+          : Future.delayed(2.seconds, () => messenger.clearMaterialBanners());
+    });
     return AppBar(
       toolbarHeight: kToolbarHeight - 12,
-      title: Text(
-        groups.subscribed.map((e) => e.data.name).join(', '),
-        style: mainTextStyle,
-      ),
+      title: Text(groups.subscribed.map((e) => e.data.name).join(', ')),
       titleSpacing: 10,
-      bottom: _syncStateBar,
+      bottom: const PreferredSize(
+        preferredSize: Size.fromHeight(1),
+        child: Divider(height: 1),
+      ),
       actionsPadding: EdgeInsets.only(right: 2),
       actions: [
         IconButton(
@@ -161,68 +205,6 @@ class ThreadAppBar extends HookWidget implements PreferredSizeWidget {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class SyncStateBar extends HookWidget implements PreferredSizeWidget {
-  const SyncStateBar(this.anim, {super.key});
-
-  final AnimationController anim;
-
-  @override
-  Size get preferredSize => Size.fromHeight(1 + anim.value * 41);
-
-  @override
-  Widget build(BuildContext context) {
-    final groups = Modular.get<GroupStore>();
-    final syncTotal = groups.syncTotal.value;
-    final msg = syncTotal > 0
-        ? syncOverviewText.format([syncTotal])
-        : syncTotal == 0
-        ? syncOverviewFinishText
-        : syncTimeoutText;
-    useValueChanged(
-      syncTotal,
-      (_, _) => syncTotal > 0
-          ? anim.forward()
-          : Future.delayed(2.seconds, () => anim.reverse()),
-    );
-    useListenable(groups.syncTotal);
-    return Column(
-      children: [
-        Divider(height: 1),
-        if (anim.value > 0)
-          SizedBox(
-            height: anim.value * 40,
-            child: Align(
-              alignment: AlignmentGeometry.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  children: [
-                    Text(
-                      msg,
-                      style: pinnedTextStyle.merge(
-                        syncTotal == -1 ? errorTextStyle : null,
-                      ),
-                    ),
-                    Spacer(),
-                    AnimatedOpacity(
-                      opacity: syncTotal > 0 && anim.value == 1 ? 1 : 0,
-                      duration: 200.ms,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        constraints: BoxConstraints.expand(width: 20),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        if (anim.value > 0) Divider(height: anim.value * 1),
       ],
     );
   }

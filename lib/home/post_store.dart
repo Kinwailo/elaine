@@ -57,8 +57,8 @@ class PostData extends ChangeNotifier {
   ThreadData? get thread => _thread;
   final ThreadData? _thread;
 
-  List<PostData> get children => _children;
-  final _children = <PostData>[];
+  Set<PostData> get children => _children;
+  final _children = <PostData>{};
 
   String? _text;
   bool _visible = false;
@@ -224,6 +224,8 @@ class PostStore {
   PostData? _selected;
   int get index => _index;
   int _index = 0;
+  int get read => _read;
+  int _read = 0;
 
   ValueListenable<bool> get postMode => _postMode;
   final _postMode = ValueNotifier<bool>(false);
@@ -247,6 +249,7 @@ class PostStore {
     final thread = threads.selected;
     if (thread == null) return;
     _thread = threads.selected;
+    _read = _thread?.read.value ?? 0;
 
     if (!postMode && index == 0) {
       _reachEnd = false;
@@ -286,6 +289,7 @@ class PostStore {
   void refresh() {
     final threads = Modular.get<ThreadStore>();
     _thread = threads.selected;
+    _read = _thread?.read.value ?? 0;
     _reachEnd = false;
     _cursorEnd = pItems.value.lastOrNull?.data.id;
     loadMore();
@@ -351,7 +355,7 @@ class PostStore {
 
   void toggleExpand(PostData post) {
     post.toggleFold();
-    loadReply(post);
+    if (post.folded) loadReply(post);
   }
 
   Future<void> loadReply(PostData post) async {

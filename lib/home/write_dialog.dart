@@ -1,14 +1,15 @@
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:elaine/app/utils.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../app/const.dart';
+import '../app/utils.dart';
 import '../services/data_store.dart';
 import 'write_store.dart';
 
@@ -28,63 +29,110 @@ class WriteDialog extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context).appBarTheme;
     final write = Modular.get<WriteStore>();
+    final sendable =
+        write.sendable.value && !write.resizing.value && !write.sending.value;
+    final showState = write.sending.value || write.error != null;
+    final messengerKey = useMemoized(() => GlobalKey<ScaffoldMessengerState>());
     final scrollController = useScrollController();
     useListenable(write.sendable.postFrame);
+    useListenable(write.resizing);
+    useListenable(write.sending);
+    useValueChanged(showState && write.error == null, (_, void _) {
+      final text = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Text(write.error == null ? writeSuccessText : write.error!),
+      );
+      final content = write.error == null
+          ? write.sending.value
+                ? LinearProgressIndicator(minHeight: 4)
+                : text
+          : text;
+      messengerKey.currentState?.clearMaterialBanners();
+      messengerKey.currentState?.showMaterialBanner(
+        MaterialBanner(
+          backgroundColor: theme.backgroundColor,
+          padding: EdgeInsets.all(0),
+          margin: EdgeInsets.all(0),
+          contentTextStyle: pinnedTextStyle.merge(errorTextStyle),
+          content: content,
+          actions: <Widget>[SizedBox.shrink()],
+          forceActionsBelow: true,
+          minActionBarHeight: 0,
+        ),
+      );
+      if (write.error == null && !write.sending.value) {
+        Future.delayed(
+          1.seconds,
+        ).then((_) => context.mounted ? Navigator.maybePop(context) : ());
+      }
+    });
     return Dialog(
       insetPadding: EdgeInsets.all(8),
-      constraints: BoxConstraints(
-        minWidth: 600,
-        maxWidth: 800,
-        // minHeight: double.infinity,
-      ),
+      constraints: BoxConstraints(minWidth: 600, maxWidth: 800),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
         borderRadius: BorderRadiusGeometry.circular(8),
       ),
       child: ClipRRect(
         borderRadius: BorderRadiusGeometry.circular(8),
-        child: Scaffold(
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          appBar: AppBar(
-            toolbarHeight: kToolbarHeight - 12,
-            title: Text(write.getTitle()),
-            titleSpacing: 0,
-          ),
-          floatingActionButton: Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Opacity(
-              opacity: write.sendable.value ? 1.0 : 0.5,
-              child: FloatingActionButton.small(
-                onPressed: !write.sendable.value ? null : write.send,
-                child: Icon(Icons.send),
-              ),
-            ),
-          ),
-          body: Scrollbar(
-            controller: scrollController,
-            thumbVisibility: true,
-            trackVisibility: true,
-            thickness: 8,
-            child: CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
-
-                  sliver: SuperSliverList.list(
-                    children: [
-                      const WriteIdentity(),
-                      if (write.postData.value == null) const WriteSubject(),
-                      const WriteContent(),
-                      const WriteSignature(),
-                      if (write.postData.value != null) const WriteQuote(),
-                      const WriteAttachment(),
-                      const SizedBox(height: 66),
-                    ],
+        child: ScaffoldMessenger(
+          key: messengerKey,
+          child: Scaffold(
+            backgroundColor: colorScheme.surfaceContainerHigh,
+            appBar: AppBar(
+              toolbarHeight: kToolbarHeight - 12,
+              automaticallyImplyLeading: false,
+              title: Text(write.getTitle()),
+              actions: [
+                CloseButton(
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
                   ),
                 ),
               ],
+              bottom: const PreferredSize(
+                preferredSize: Size.fromHeight(1),
+                child: Divider(height: 1),
+              ),
+            ),
+            floatingActionButton: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Opacity(
+                opacity: !sendable ? 0.3 : 1.0,
+                child: FloatingActionButton.small(
+                  onPressed: !sendable ? null : write.send,
+                  child: Icon(Icons.send),
+                ),
+              ),
+            ),
+            body: Scrollbar(
+              controller: scrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              thickness: 8,
+              child: CustomScrollView(
+                controller: scrollController,
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
+                    sliver: SuperSliverList.list(
+                      children: [
+                        const WriteIdentity(),
+                        if (write.postData.value == null) const WriteSubject(),
+                        const WriteContent(),
+                        const WriteSignature(),
+                        if (write.postData.value != null) const WriteQuote(),
+                        const WriteAttachment(),
+                        const SizedBox(height: 66),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -135,6 +183,7 @@ class WriteIdentity extends HookWidget {
             ),
             if (write.identity.isEmpty) ...[
               TextField(
+                style: mainTextStyle,
                 decoration: InputDecoration(
                   isDense: true,
                   filled: false,
@@ -152,6 +201,7 @@ class WriteIdentity extends HookWidget {
                 onChanged: (value) => write.name = name.text,
               ),
               TextField(
+                style: mainTextStyle,
                 decoration: InputDecoration(
                   isDense: true,
                   filled: false,
@@ -192,6 +242,7 @@ class WriteSubject extends HookWidget {
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: TextField(
+          style: mainTextStyle,
           decoration: InputDecoration(
             isDense: true,
             filled: false,
@@ -217,14 +268,17 @@ class WriteContent extends HookWidget {
   Widget build(BuildContext context) {
     final write = Modular.get<WriteStore>();
     final body = useTextEditingController(text: write.body);
+    final empty = body.text.isEmpty && write.images.value.isEmpty;
     useListenable(body);
-    useValueChanged(body.text.isEmpty, (_, void _) => write.updateSendable());
+    useListenable(write.images);
+    useValueChanged(empty, (_, void _) => write.updateSendable());
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: Stack(
           children: [
             TextField(
+              style: mainTextStyle,
               maxLines: null,
               decoration: InputDecoration(
                 isDense: true,
@@ -237,7 +291,7 @@ class WriteContent extends HookWidget {
                   bottom: 4,
                 ),
                 labelText: bodyText,
-                errorText: body.text.isNotEmpty
+                errorText: !empty
                     ? null
                     : bodyText + orText + attachmentText + emptyInputText,
               ),
@@ -265,7 +319,6 @@ class WriteSignature extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final write = Modular.get<WriteStore>();
-    final enable = useState(true);
     final signature = useTextEditingController(text: write.signature);
     useListenable(signature);
     return Card(
@@ -274,6 +327,7 @@ class WriteSignature extends HookWidget {
         child: Stack(
           children: [
             TextField(
+              style: mainTextStyle,
               maxLines: null,
               decoration: const InputDecoration(
                 labelText: signatureText,
@@ -293,8 +347,8 @@ class WriteSignature extends HookWidget {
             Align(
               alignment: AlignmentDirectional.topEnd,
               child: Checkbox(
-                value: enable.value,
-                onChanged: (v) => enable.value = v!,
+                value: write.enableSignature,
+                onChanged: (v) => write.enableSignature = v!,
               ),
             ),
           ],
@@ -311,12 +365,9 @@ class WriteQuote extends HookWidget {
   Widget build(BuildContext context) {
     var colorScheme = Theme.of(context).colorScheme;
     final write = Modular.get<WriteStore>();
-    final enable = useState(true);
     final quote = useTextEditingController(text: write.quote);
-
     final all = useState(false);
     useListenable(quote);
-
     void quoteListener() => all.value = true;
     useEffect(() {
       quote.addListener(quoteListener);
@@ -331,6 +382,7 @@ class WriteQuote extends HookWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
+                  style: mainTextStyle,
                   maxLines: null,
                   decoration: const InputDecoration(
                     labelText: quoteText,
@@ -345,27 +397,31 @@ class WriteQuote extends HookWidget {
                     ),
                   ),
                   controller: quote,
+                  onChanged: (value) => write.quote = quote.text,
                 ),
                 if (!all.value && write.needChop())
-                  RichText(
-                    text: TextSpan(
-                      text: '${write.charChopped()} characters is chopped. ',
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: 'Quote all',
-                          style: const TextStyle(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () => write.quoteAll(),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: RichText(
+                      text: TextSpan(
+                        text: '${write.charChopped()}$charChoppedText ',
+                        style: TextStyle(
+                          color: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const TextSpan(text: ' '),
-                      ],
+                        children: [
+                          TextSpan(
+                            text: quoteAllText,
+                            style: const TextStyle(
+                              color: Colors.blueAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () => quote.text = write.quoteAll(),
+                          ),
+                          const TextSpan(text: ' '),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -373,8 +429,8 @@ class WriteQuote extends HookWidget {
             Align(
               alignment: AlignmentDirectional.topEnd,
               child: Checkbox(
-                value: enable.value,
-                onChanged: (v) => enable.value = v!,
+                value: write.enableQuote,
+                onChanged: (v) => write.enableQuote = v!,
               ),
             ),
           ],
@@ -455,7 +511,7 @@ class WriteAttachment extends HookWidget {
                       ),
                       ChoiceChip(
                         showCheckmark: false,
-                        label: const Text('Original'),
+                        label: const Text(originalImageText),
                         padding: const EdgeInsets.all(0),
                         selected: original.value,
                         onSelected: (v) {
@@ -474,7 +530,7 @@ class WriteAttachment extends HookWidget {
                       ),
                       ChoiceChip(
                         showCheckmark: false,
-                        label: const Text('HQ Resize'),
+                        label: const Text(hqImageText),
                         padding: const EdgeInsets.all(0),
                         selected: hqResize.value,
                         onSelected: (v) {
@@ -489,7 +545,7 @@ class WriteAttachment extends HookWidget {
                         },
                       ),
                       ActionChip(
-                        label: const Text('Remove'),
+                        label: const Text(removeImageText),
                         padding: const EdgeInsets.all(0),
                         onPressed: () {
                           if (write.resizing.value) return;
