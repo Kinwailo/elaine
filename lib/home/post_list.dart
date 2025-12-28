@@ -13,10 +13,12 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../app/const.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
+import '../services/data_store.dart';
 import '../widgets/app_link.dart';
 import '../widgets/show_more_box.dart';
 import 'group_store.dart';
 import 'post_store.dart';
+import 'settings_data.dart';
 import 'thread_store.dart';
 import 'write_dialog.dart';
 import 'write_store.dart';
@@ -268,7 +270,10 @@ class PostTile extends HookWidget {
                         spacing: 8,
                         children: [
                           if (post.getText().isNotEmpty) PostText(post),
-                          if (post.images.isNotEmpty) PostImages(post),
+                          if (post.images.isNotEmpty)
+                            getSetting<bool>('ui', 'imagePreview')
+                                ? PostImagePreviews(post)
+                                : PostImages(post),
                         ],
                       ),
                     ),
@@ -793,14 +798,16 @@ class PostImage extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxWidth = getSetting<int>('ui', 'imageMaxWidth').toDouble();
+    final maxHeight = getSetting<int>('ui', 'previewMaxHeight').toDouble();
     final width = mini
         ? null
-        : image.size!.width > 600.0
-        ? 600.0
+        : image.size!.width > maxWidth
+        ? maxWidth
         : null;
     final height = mini
-        ? image.size!.height > 100.0
-              ? 100.0
+        ? image.size!.height > maxHeight
+              ? maxHeight
               : null
         : null;
     final showOcr = useState(false);

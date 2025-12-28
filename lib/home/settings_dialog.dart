@@ -1,8 +1,11 @@
+import 'package:elaine/home/settings_data.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../app/const.dart';
+import '../app/utils.dart';
 
 class SettingsDialog extends HookWidget {
   const SettingsDialog({super.key});
@@ -60,13 +63,134 @@ class SettingsDialog extends HookWidget {
               slivers: [
                 SliverPadding(
                   padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
-                  sliver: SuperSliverList.list(children: [
-                    ],
+                  sliver: SuperSliverList.list(
+                    children: settingsData
+                        .map((e) => SettingsGroup(e))
+                        .toList(),
                   ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class SettingsGroup extends HookWidget {
+  const SettingsGroup(this.settings, {super.key});
+
+  final SettingsItem settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = settings['data'] as List<SettingsItem>;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: [
+          Text(settings['name']),
+          Card(
+            child: Column(
+              children: data
+                  .map(
+                    (e) => switch (e['default'].runtimeType) {
+                      const (bool) => SettingsSwitchTile(
+                        e,
+                        settings['setting'],
+                      ),
+                      const (int) => SettingsNumberTile(e, settings['setting']),
+                      _ => null,
+                    },
+                  )
+                  .nonNulls
+                  .cast<Widget>()
+                  .separator(Divider(height: 1, indent: 1, endIndent: 1)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SettingsSwitchTile extends HookWidget {
+  const SettingsSwitchTile(this.settings, this.group, {super.key});
+
+  final SettingsItem settings;
+  final String group;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = useState<bool>(getSetting(group, settings['setting']));
+    void onTap() {
+      setSetting(group, settings['setting'], !value.value);
+      value.value = !value.value;
+    }
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.only(left: 12),
+      onTap: onTap,
+      title: Text(settings['name']),
+      trailing: Transform.scale(
+        scale: 0.6,
+        child: Switch(value: value.value, onChanged: (_) => onTap()),
+      ),
+    );
+  }
+}
+
+class SettingsNumberTile extends HookWidget {
+  const SettingsNumberTile(this.settings, this.group, {super.key});
+
+  final SettingsItem settings;
+  final String group;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = useValueNotifier<int>(getSetting(group, settings['setting']));
+    final text = useTextEditingController(text: '${value.value}');
+    final delta = useValueNotifier(0.0);
+    final step = settings['step'] as int;
+    final min = settings['min'] as int;
+    final max = settings['max'] as int;
+    void setValue(int v) {
+      v = v.clamp(min, max);
+      value.value = v;
+      text.text = '$v';
+      setSetting(group, settings['setting'], v);
+    }
+
+    return GestureDetector(
+      onHorizontalDragStart: (_) => delta.value = 0.0,
+      onHorizontalDragUpdate: (details) {
+        delta.value += details.primaryDelta ?? 0.0;
+        setValue(value.value + step * (delta.value ~/ 20.0));
+        delta.value = delta.value.remainder(20.0);
+      },
+      child: ListTile(
+        dense: true,
+        mouseCursor: SystemMouseCursors.resizeLeftRight,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+        onTap: () {},
+        title: Text(settings['name']),
+        trailing: TextField(
+          controller: text,
+          style: subTextStyle,
+          textAlign: TextAlign.center,
+          decoration: InputDecoration.collapsed(
+            hintText: null,
+            border: UnderlineInputBorder(),
+            constraints: BoxConstraints(maxWidth: 40),
+          ),
+          keyboardType: TextInputType.number,
+          inputFormatters: <TextInputFormatter>[
+            FilteringTextInputFormatter.digitsOnly,
+          ],
+          onSubmitted: (value) =>
+              setValue(int.tryParse(text.text) ?? settings['default']),
         ),
       ),
     );
