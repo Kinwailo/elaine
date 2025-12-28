@@ -1,4 +1,6 @@
 import 'package:elaine/home/settings_data.dart';
+import 'package:elaine/services/data_store.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -86,6 +88,7 @@ class SettingsGroup extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final data = settings['data'] as List<SettingsItem>;
+    final group = settings['setting'];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
@@ -96,11 +99,8 @@ class SettingsGroup extends HookWidget {
               children: data
                   .map(
                     (e) => switch (e['default'].runtimeType) {
-                      const (bool) => SettingsSwitchTile(
-                        e,
-                        settings['setting'],
-                      ),
-                      const (int) => SettingsNumberTile(e, settings['setting']),
+                      const (bool) => SettingsSwitchTile(group, e),
+                      const (int) => SettingsNumberTile(group, e),
                       _ => null,
                     },
                   )
@@ -115,11 +115,32 @@ class SettingsGroup extends HookWidget {
   }
 }
 
-class SettingsSwitchTile extends HookWidget {
-  const SettingsSwitchTile(this.settings, this.group, {super.key});
+abstract class SettingsTileBase extends HookWidget {
+  const SettingsTileBase(this.group, this.settings, {super.key});
 
-  final SettingsItem settings;
   final String group;
+  final SettingsItem settings;
+
+  String get enabledBy => settings['enabledBy'] ?? '';
+  String get enabledByKey => 'settings.$group.$enabledBy';
+  ValueListenable get enabledByListenable => DataValue.changed.where(
+    (e) => e?.$1 == enabledByKey,
+    (enabledByKey, getSetting(group, enabledBy)),
+  );
+
+  bool useEnabledBy() {
+    final listenable = useMemoized(
+      () => !settings.containsKey('enabledBy') ? null : enabledByListenable,
+    );
+    return useListenableSelector(
+      listenable,
+      () => (listenable?.value?.$2 ?? true) as bool,
+    );
+  }
+}
+
+class SettingsSwitchTile extends SettingsTileBase {
+  const SettingsSwitchTile(super.group, super.settings, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -129,24 +150,26 @@ class SettingsSwitchTile extends HookWidget {
       value.value = !value.value;
     }
 
+    final enabled = useEnabledBy();
     return ListTile(
       dense: true,
+      enabled: enabled,
       contentPadding: EdgeInsets.only(left: 12),
       onTap: onTap,
       title: Text(settings['name']),
       trailing: Transform.scale(
         scale: 0.6,
-        child: Switch(value: value.value, onChanged: (_) => onTap()),
+        child: Switch(
+          value: value.value,
+          onChanged: !enabled ? null : (_) => onTap(),
+        ),
       ),
     );
   }
 }
 
-class SettingsNumberTile extends HookWidget {
-  const SettingsNumberTile(this.settings, this.group, {super.key});
-
-  final SettingsItem settings;
-  final String group;
+class SettingsNumberTile extends SettingsTileBase {
+  const SettingsNumberTile(super.group, super.settings, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +186,7 @@ class SettingsNumberTile extends HookWidget {
       setSetting(group, settings['setting'], v);
     }
 
+    final enabled = useEnabledBy();
     return GestureDetector(
       onHorizontalDragStart: (_) => delta.value = 0.0,
       onHorizontalDragUpdate: (details) {
@@ -172,11 +196,15 @@ class SettingsNumberTile extends HookWidget {
       },
       child: ListTile(
         dense: true,
-        mouseCursor: SystemMouseCursors.resizeLeftRight,
+        enabled: enabled,
+        mouseCursor: enabled
+            ? SystemMouseCursors.resizeLeftRight
+            : SystemMouseCursors.basic,
         contentPadding: EdgeInsets.symmetric(horizontal: 12),
         onTap: () {},
         title: Text(settings['name']),
         trailing: TextField(
+          enabled: enabled,
           controller: text,
           style: subTextStyle,
           textAlign: TextAlign.center,

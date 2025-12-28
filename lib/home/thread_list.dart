@@ -13,6 +13,7 @@ import '../services/data_store.dart';
 import '../widgets/app_link.dart';
 import 'group_store.dart';
 import 'post_store.dart';
+import 'settings_data.dart';
 import 'thread_store.dart';
 import 'write_dialog.dart';
 import 'write_store.dart';
@@ -271,11 +272,28 @@ class ThreadTile extends HookWidget {
     useListenable(thread.read);
     useListenable(thread.readArray);
     useListenable(posts.postMode.postFrame);
+
+    final openHierarchy = getSetting<bool>('ui', 'openHierarchy');
+    final openLastRead = getSetting<bool>('ui', 'openLastRead');
+    final listenable = useMemoized(
+      () => DataValue.changed.where(
+        (e) => [
+          'settings.ui.openHierarchy',
+          'settings.ui.openLastRead',
+        ].contains(e?.$1),
+        null,
+      ),
+    );
+    useListenable(listenable);
     return AppLink(
       root: thread.data.group,
       paths: [
         '${thread.data.number}',
-        if (thread.read.value > 1) '${thread.read.value}',
+        if (openHierarchy) ...[
+          'post',
+          '1',
+        ] else if (openLastRead && thread.read.value > 1)
+          '${thread.read.value}',
       ],
       onTap: () => threads.updateTile(thread.data.number),
       child: Container(

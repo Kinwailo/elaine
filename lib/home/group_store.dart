@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
+import 'package:elaine/home/settings_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -115,24 +116,25 @@ class GroupStore {
   Future<void> refresh() async {
     final groups = await update();
 
-    _refreshing.value = true;
     final threads = Modular.get<ThreadStore>();
-    threads.refresh();
+    if (getSetting<bool>('ui', 'refreshBeforeSync')) threads.refresh();
     if (syncNew.value > 0) {
       _syncNew.value = 0;
-      _refreshing.value = false;
       return;
     }
 
     final updates = groups.where(
       (e) => DateTime.now().difference(e.update).inSeconds > 5,
     );
-    if (updates.isEmpty) {
-      _refreshing.value = false;
+    if (updates.isEmpty) return;
+
+    final cloud = Modular.get<CloudService>();
+    if (!getSetting<bool>('ui', 'waitSync')) {
+      cloud.syncThreads(subscribed.map((e) => e.data));
       return;
     }
 
-    final cloud = Modular.get<CloudService>();
+    _refreshing.value = true;
     final numbers = await cloud.checkGroups(updates.map((e) => e.group));
     _refreshing.value = false;
 
@@ -149,7 +151,14 @@ class GroupStore {
     if (sync.isNotEmpty) {
       final result = await cloud.syncThreads(sync);
       _syncTotal.value = result ? 0 : -1;
-      if (result) _syncNew.value = total;
+      if (result && total > 0) {
+        _syncNew.value = total;
+        if (getSetting<bool>('ui', 'refreshAfterSync')) {
+          await update();
+          threads.refresh();
+          _syncNew.value = 0;
+        }
+      }
     }
   }
 }

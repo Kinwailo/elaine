@@ -13,6 +13,7 @@ const uiShowMore = '顯示更多';
 const uiShowLess = '顯示較少';
 
 const replyText = '回覆';
+const blockText = '屏蔽此人';
 const originalText = '原文';
 
 const emptyText = '無內文';

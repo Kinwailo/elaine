@@ -44,13 +44,36 @@ const settingsData = <SettingsItem>[
     'data': [
       {'name': '同步前先重新整理一遍', 'setting': 'refreshBeforeSync', 'default': true},
       {'name': '等待伺服器同步新聞組資料', 'setting': 'waitSync', 'default': true},
-      {'name': '同步後再重新整理一遍', 'setting': 'refreshAfterSync', 'default': true},
+      {
+        'name': '同步後再重新整理一遍',
+        'setting': 'refreshAfterSync',
+        'enabledBy': 'waitSync',
+        'default': true,
+      },
     ],
   },
   {
-    'name': '圖片顯示',
+    'name': '發文顯示',
     'setting': 'ui',
     'data': [
+      {'name': '選擇主題後以階層形式顯示討論串', 'setting': 'openHierarchy', 'default': false},
+      {'name': '選擇主題後跳至最後已閱讀的發文', 'setting': 'openLastRead', 'default': true},
+      {
+        'name': '啟用「顯示更多」若內文長度大於：',
+        'setting': 'contentMaxHeight',
+        'default': 600,
+        'step': 50,
+        'min': 200,
+        'max': 5000,
+      },
+      {
+        'name': '啟用「顯示更多」若引文長度大於：',
+        'setting': 'quoteMaxHeight',
+        'default': 100,
+        'step': 10,
+        'min': 50,
+        'max': 500,
+      },
       {
         'name': '顯示圖片時闊度不大於：',
         'setting': 'imageMaxWidth',
@@ -59,7 +82,7 @@ const settingsData = <SettingsItem>[
         'min': 200,
         'max': 5000,
       },
-      {'name': '以縮圖形式顯示圖片', 'setting': 'imagePreview', 'default': true},
+      {'name': '以縮圖形式顯示內文圖片', 'setting': 'imagePreview', 'default': true},
       {
         'name': '顯示縮圖時高度不大於：',
         'setting': 'previewMaxHeight',

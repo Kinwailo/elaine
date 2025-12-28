@@ -9,6 +9,7 @@ class DataStore extends ChangeNotifier {
 
   static const String app = 'elaine';
   static final Map<String, DataStore> _store = {};
+  static final changed = ValueNotifier('');
 
   final String name;
 
@@ -47,7 +48,10 @@ class DataStore extends ChangeNotifier {
     if (value == get(data)) return;
     final path = p.join(app, name, data);
     html.window.localStorage[path] = value;
-    if (notify) notifyListeners();
+    if (notify) {
+      changed.value = data;
+      notifyListeners();
+    }
   }
 }
 
@@ -55,6 +59,8 @@ class DataValue extends ChangeNotifier {
   DataValue(String store, this.name) : store = DataStore.store(store) {
     getData();
   }
+
+  static final changed = ValueNotifier<(String, dynamic)?>(null);
 
   final DataStore store;
   final String name;
@@ -78,6 +84,9 @@ class DataValue extends ChangeNotifier {
     getData();
     _data?[key] = value;
     store.set(name, json.encode(_data ?? {}));
-    if (notify) notifyListeners();
+    if (notify) {
+      changed.value = ('${store.name}.$name.$key', value);
+      notifyListeners();
+    }
   }
 }

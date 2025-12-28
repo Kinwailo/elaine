@@ -13,7 +13,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../app/const.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
-import '../services/data_store.dart';
 import '../widgets/app_link.dart';
 import '../widgets/show_more_box.dart';
 import 'group_store.dart';
@@ -104,7 +103,9 @@ class PostList extends HookWidget {
                 },
               ),
             ),
-            if (posts.pItems.isNotEmpty && posts.reachEnd)
+            if (posts.pItems.isNotEmpty &&
+                posts.reachEnd &&
+                !posts.postMode.value)
               SliverToBoxAdapter(
                 child: Align(
                   alignment: AlignmentGeometry.topCenter,
@@ -264,7 +265,10 @@ class PostTile extends HookWidget {
                     PostHeadbar(post),
                     if (quote != null) PostQuote(quote),
                     ShowMoreBox(
-                      maxHeight: 600,
+                      maxHeight: getSetting<int>(
+                        'ui',
+                        'contentMaxHeight',
+                      ).toDouble(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         spacing: 8,
@@ -399,19 +403,7 @@ List<InlineSpan> linkifyTextSpan(PostData post) {
         ),
       ];
     } else if (nonNulls.isNotEmpty && nonNulls.first == link.image) {
-      final maxWidth = 600.0;
-      return [
-        WidgetSpan(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: Image.memory(
-              link.image!.data,
-              height: 100,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-      ];
+      return [WidgetSpan(child: PostImage(link.image!))];
     } else {
       return [WidgetSpan(child: PostLinkCard(link))];
     }
@@ -427,8 +419,8 @@ class PostLinkCard extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    var desc = link.desc ?? '';
-    desc += link.image == null ? '' : '\n\n\n';
+    final color = colorScheme.primaryContainer.withValues(alpha: 0.8);
+    final desc = '${link.desc ?? ''}${link.image == null ? '' : '\n\n\n'}';
     return Card(
       color: colorScheme.surfaceContainerHighest,
       margin: EdgeInsets.all(0),
@@ -437,20 +429,14 @@ class PostLinkCard extends HookWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Table(
-        columnWidths: link.image == null
-            ? null
-            : const {0: FixedColumnWidth(108)},
+        columnWidths: link.image == null ? null : {0: FixedColumnWidth(108)},
         children: [
           TableRow(
             children: [
               if (link.image != null)
                 TableCell(
                   verticalAlignment: TableCellVerticalAlignment.fill,
-                  child: Image.memory(
-                    link.image!.data,
-                    height: 100,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Center(child: PostImage.mini(link.image!)),
                 ),
               InkWell(
                 onTap: () => launchUrlString(link.url),
@@ -458,11 +444,7 @@ class PostLinkCard extends HookWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Ink(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withValues(
-                          alpha: 0.8,
-                        ),
-                      ),
+                      decoration: BoxDecoration(color: color),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           vertical: 1,
@@ -564,6 +546,13 @@ class PostHeadbar extends HookWidget {
                 WriteDialog.show(context);
               },
               child: Icon(Icons.reply, size: 16),
+            ),
+          ),
+          Tooltip(
+            message: blockText,
+            child: InkWell(
+              onTap: () {},
+              child: Icon(Icons.block, size: 16, color: Colors.redAccent),
             ),
           ),
           Tooltip(
@@ -693,7 +682,7 @@ class PostQuote extends HookWidget {
             borderRadius: BorderRadius.circular(4),
           ),
           child: ShowMoreBox.mini(
-            maxHeight: 100,
+            maxHeight: getSetting<int>('ui', 'quoteMaxHeight').toDouble(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -819,6 +808,7 @@ class PostImage extends HookWidget {
           width: width,
           height: height,
           fit: mini ? BoxFit.cover : null,
+          errorBuilder: (_, _, _) => Image.memory(missingIcon),
         ),
         if (image.ocr != null && !mini && showOcr.value)
           Positioned.fill(

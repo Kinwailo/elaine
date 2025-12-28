@@ -113,6 +113,8 @@ class PostFrameListenable extends Listenable with ChangeNotifier {
 extension ValueListenableExtension<E> on ValueListenable<E> {
   SelectedListenable<T, E> select<T>(T Function(E) selector) =>
       SelectedListenable<T, E>(this, selector);
+  WhereListenable<E> where(bool Function(E) test, E initialValue) =>
+      WhereListenable<E>(this, test, initialValue);
 }
 
 class SelectedListenable<T, E> extends ValueListenable<T> with ChangeNotifier {
@@ -140,6 +142,33 @@ class SelectedListenable<T, E> extends ValueListenable<T> with ChangeNotifier {
 
   @override
   T get value => _value;
+}
+
+class WhereListenable<E> extends ValueListenable<E> with ChangeNotifier {
+  WhereListenable(this.listenable, this.test, initialValue)
+    : _value = test(listenable.value) ? listenable.value : initialValue {
+    listenable.addListener(listener);
+  }
+
+  final ValueListenable<E> listenable;
+  final bool Function(E) test;
+  E _value;
+
+  void listener() {
+    if (!test(listenable.value)) return;
+    if (_value == listenable.value) return;
+    _value = listenable.value;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    removeListener(listener);
+    super.dispose();
+  }
+
+  @override
+  E get value => _value;
 }
 
 abstract class ListListenable<T> extends Listenable {
