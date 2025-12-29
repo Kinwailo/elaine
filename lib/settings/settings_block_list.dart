@@ -35,21 +35,24 @@ class SettingsBlockList extends SettingsTileBase {
               child: Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
+                  spacing: -4,
+                  runSpacing: 0,
                   children: list
                       .map(
-                        (e) => InputChip(
-                          isEnabled: enabled,
-                          backgroundColor: colorScheme.secondaryContainer,
-                          labelPadding: EdgeInsets.only(left: 6, right: 4),
-                          label: Text(e),
-                          onDeleted: () {
-                            final list = getSetting<List>('ui', 'blockList');
-                            setSetting('ui', 'blockList', [
-                              ...list.where((b) => b != e),
-                            ]);
-                          },
+                        (e) => Transform.scale(
+                          scale: 0.8,
+                          child: InputChip(
+                            isEnabled: enabled,
+                            backgroundColor: colorScheme.secondaryContainer,
+                            labelPadding: EdgeInsets.only(left: 6, right: 4),
+                            label: Text(e),
+                            onDeleted: () {
+                              final list = getSetting<List>('ui', 'blockList');
+                              setSetting('ui', 'blockList', [
+                                ...list.where((b) => b != e),
+                              ]);
+                            },
+                          ),
                         ),
                       )
                       .toList(),

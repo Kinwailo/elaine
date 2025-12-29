@@ -770,7 +770,7 @@ class PostQuote extends HookWidget {
               child: ShowMoreBox.mini(
                 maxHeight: getSetting<int>('ui', 'quoteMaxHeight').toDouble(),
                 child: Opacity(
-                  opacity: 0.6,
+                  opacity: block ? 0.6 : 1.0,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

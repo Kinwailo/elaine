@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import "package:universal_html/html.dart" as html;
+import 'package:web/web.dart';
 
 class DataStore extends ChangeNotifier {
   DataStore._(this.name);
@@ -19,35 +19,36 @@ class DataStore extends ChangeNotifier {
     return _store.putIfAbsent(name, () => DataStore._(name));
   }
 
-  static Iterable<String> list() {
-    return html.window.localStorage.keys
-        .where((e) => p.split(e).firstOrNull == app)
-        .map((e) => p.split(e).skip(1).firstOrNull)
-        .nonNulls;
+  static Iterable<String> get keys sync* {
+    for (int i = 0; i < window.localStorage.length; i++) {
+      yield window.localStorage.key(i)!;
+    }
   }
 
-  Iterable<String> datas() {
-    return html.window.localStorage.keys
-        .where((e) => p.split(e).firstOrNull == app)
-        .where((e) => p.split(e).skip(1).firstOrNull == name)
-        .map((e) => p.split(e).skip(2).firstOrNull)
-        .nonNulls;
-  }
+  static Iterable<String> get list => keys
+      .where((e) => p.split(e).firstOrNull == app)
+      .map((e) => p.split(e).skip(1).firstOrNull)
+      .nonNulls;
+
+  Iterable<String> get datas => list
+      .where((e) => p.split(e).skip(1).firstOrNull == name)
+      .map((e) => p.split(e).skip(2).firstOrNull)
+      .nonNulls;
 
   void remove(String data) {
     final path = p.join(app, name, data);
-    html.window.localStorage.remove(path);
+    window.localStorage.removeItem(path);
   }
 
   String? get(String data) {
     final path = p.join(app, name, data);
-    return html.window.localStorage[path];
+    return window.localStorage.getItem(path);
   }
 
   void set(String data, dynamic value, {bool notify = true}) {
     if (value == get(data)) return;
     final path = p.join(app, name, data);
-    html.window.localStorage[path] = value;
+    window.localStorage.setItem(path, value);
     if (notify) {
       changed.value = data;
       notifyListeners();
