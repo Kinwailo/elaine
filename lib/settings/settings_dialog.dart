@@ -100,13 +100,13 @@ class SettingsGroup extends HookWidget {
             child: Column(
               children: data
                   .map((e) {
-                    print('${e['setting']} ${e['default'].runtimeType}');
                     return switch (e['default'].runtimeType) {
                       const (bool) => SettingsSwitch(group, e),
                       const (int) => SettingsNumber(group, e),
-                      const (List<String>) when e['setting'] == 'blockList' =>
-                        SettingsBlockList(group, e),
-                      _ => null,
+                      _ => switch (e['setting']) {
+                        'blockList' => SettingsBlockList(group, e),
+                        _ => null,
+                      },
                     };
                   })
                   .nonNulls
