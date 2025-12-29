@@ -99,15 +99,16 @@ class SettingsGroup extends HookWidget {
           Card(
             child: Column(
               children: data
-                  .map(
-                    (e) => switch (e['default'].runtimeType) {
+                  .map((e) {
+                    print('${e['setting']} ${e['default'].runtimeType}');
+                    return switch (e['default'].runtimeType) {
                       const (bool) => SettingsSwitch(group, e),
                       const (int) => SettingsNumber(group, e),
                       const (List<String>) when e['setting'] == 'blockList' =>
                         SettingsBlockList(group, e),
                       _ => null,
-                    },
-                  )
+                    };
+                  })
                   .nonNulls
                   .cast<Widget>()
                   .separator(Divider(height: 1, indent: 1, endIndent: 1)),

@@ -103,7 +103,7 @@ const settingsData = <SettingsItem>[
         'min': 200,
         'max': 5000,
       },
-      {'name': '以縮圖形式顯示內文圖片', 'setting': 'imagePreview', 'default': true},
+      {'name': '以縮圖形式顯示內文圖片', 'setting': 'imagePreview', 'default': false},
       {
         'name': '顯示縮圖時高度不大於：',
         'setting': 'previewMaxHeight',
