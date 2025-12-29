@@ -33,7 +33,6 @@ class AppWidget extends StatelessWidget {
       debugPrint('Navigate: ${Modular.to.path}');
       debugPrint('History: ${Modular.to.navigateHistory.map((e) => e.name)}');
     });
-
     return MaterialApp.router(
       title: 'Elaine',
       theme: AppTheme.light,

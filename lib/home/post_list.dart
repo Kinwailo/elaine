@@ -13,11 +13,12 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../app/const.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
+import '../services/data_store.dart';
 import '../widgets/app_link.dart';
 import '../widgets/show_more_box.dart';
 import 'group_store.dart';
 import 'post_store.dart';
-import 'settings_data.dart';
+import '../settings/settings_data.dart';
 import 'thread_store.dart';
 import 'write_dialog.dart';
 import 'write_store.dart';
@@ -182,6 +183,54 @@ class MorePosts extends HookWidget {
 
 class PostTile extends HookWidget {
   const PostTile(this.post, {super.key});
+
+  final PostData post;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = getSetting<List>('ui', 'blockList');
+    final block = list.contains(post.data.sender);
+    final listenable = useMemoized(
+      () => DataValue.changed.where(
+        (e) => [
+          'settings.ui.enableBlock',
+          'settings.ui.blockList',
+        ].contains(e?.$1),
+        null,
+      ),
+    );
+    useListenable(listenable);
+    return block && getSetting<bool>('ui', 'enableBlock')
+        ? PostBlock(key: key, post)
+        : PostNormal(key: key, post);
+  }
+}
+
+class PostBlock extends HookWidget {
+  const PostBlock(this.post, {super.key});
+
+  final PostData post;
+
+  @override
+  Widget build(BuildContext context) {
+    var colorScheme = Theme.of(context).colorScheme;
+    var color = colorScheme.surface.withValues(alpha: 0.3);
+    return CustomPaint(
+      painter: BlockPainter(colorScheme.surfaceTint, Colors.yellow),
+      child: Container(
+        width: double.infinity,
+        color: color,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
+          child: Opacity(opacity: 0.6, child: PostHeadbar(post)),
+        ),
+      ),
+    );
+  }
+}
+
+class PostNormal extends HookWidget {
+  const PostNormal(this.post, {super.key});
 
   final PostData post;
 
@@ -551,7 +600,18 @@ class PostHeadbar extends HookWidget {
           Tooltip(
             message: blockText,
             child: InkWell(
-              onTap: () {},
+              onTap: () {
+                final list = getSetting<List>('ui', 'blockList');
+                final block = post.data.sender;
+                setSetting(
+                  'ui',
+                  'blockList',
+                  {
+                    ...list.where((e) => e != block),
+                    if (!list.contains(block)) block,
+                  }.toList(),
+                );
+              },
               child: Icon(Icons.block, size: 16, color: Colors.redAccent),
             ),
           ),
@@ -654,62 +714,103 @@ class PostQuote extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    var colorScheme = Theme.of(context).colorScheme;
+    var color = colorScheme.surface.withValues(alpha: 0.3);
     final posts = Modular.get<PostStore>();
     useMemoized(() => posts.loadImage(post), [
       ...post.images,
       post.synced.value,
     ]);
+
+    final list = getSetting<List>('ui', 'blockList');
+    final block =
+        list.contains(post.data.sender) &&
+        getSetting<bool>('ui', 'enableBlock');
+    final listenable = useMemoized(
+      () => DataValue.changed.where(
+        (e) => [
+          'settings.ui.enableBlock',
+          'settings.ui.blockList',
+        ].contains(e?.$1),
+        null,
+      ),
+    );
+    useListenable(listenable);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: EdgeInsetsGeometry.all(4),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            border: Border(
-              left: BorderSide(
-                color: colorScheme.tertiaryFixedDim,
-                width: 4,
-                style: BorderStyle.solid,
+        CustomPaint(
+          painter: !block
+              ? null
+              : BlockPainter(colorScheme.surfaceTint, Colors.yellow),
+          child: Container(
+            width: double.infinity,
+            color: !block ? null : color,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: block ? 2 : 4,
               ),
-              right: BorderSide(
-                color: colorScheme.tertiaryFixedDim,
-                width: 0.5,
-                style: BorderStyle.solid,
+              decoration: BoxDecoration(
+                color: block ? null : colorScheme.surfaceContainerHigh,
+                border: Border(
+                  left: BorderSide(
+                    color: colorScheme.tertiaryFixedDim,
+                    width: 4,
+                    style: BorderStyle.solid,
+                  ),
+                  right: BorderSide(
+                    color: colorScheme.tertiaryFixedDim,
+                    width: 0.5,
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                borderRadius: BorderRadius.circular(4),
               ),
-            ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: ShowMoreBox.mini(
-            maxHeight: getSetting<int>('ui', 'quoteMaxHeight').toDouble(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text.rich(
-                  TextSpan(
-                    text: '${post.data.sender}: ',
-                    style: senderTextStyle,
+              child: ShowMoreBox.mini(
+                maxHeight: getSetting<int>('ui', 'quoteMaxHeight').toDouble(),
+                child: Opacity(
+                  opacity: 0.6,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (post.syncing.value) ...[
-                        WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: SizedBox.square(
-                            dimension: 12,
-                            child: CircularProgressIndicator(strokeWidth: 1),
-                          ),
+                      Text.rich(
+                        TextSpan(
+                          text: '${post.data.sender}: ',
+                          style: senderTextStyle,
+                          children: [
+                            if (post.syncing.value) ...[
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: SizedBox.square(
+                                  dimension: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1,
+                                  ),
+                                ),
+                              ),
+                              WidgetSpan(child: SizedBox(width: 4)),
+                            ],
+                            if (block)
+                              TextSpan(
+                                text: blockContentText,
+                                style: subTextStyle,
+                              )
+                            else
+                              TextSpan(
+                                text: post.getText(),
+                                style: post.error.value
+                                    ? errorTextStyle
+                                    : subTextStyle,
+                              ),
+                          ],
                         ),
-                        WidgetSpan(child: SizedBox(width: 4)),
-                      ],
-                      TextSpan(
-                        text: post.getText(),
-                        style: post.error.value ? errorTextStyle : subTextStyle,
                       ),
+                      if (post.images.isNotEmpty) PostImagePreviews(post),
                     ],
                   ),
                 ),
-                if (post.images.isNotEmpty) PostImagePreviews(post),
-              ],
+              ),
             ),
           ),
         ),

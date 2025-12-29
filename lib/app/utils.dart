@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:patterns_canvas/patterns_canvas.dart';
 
 import 'const.dart';
 
@@ -86,6 +87,31 @@ double estimateWrappedHeight(
         ? Size(v.width + e, v.height)
         : Size(e, v.height + itemHeight);
   }).height;
+}
+
+class BlockPainter extends CustomPainter {
+  const BlockPainter(this.bg, this.fg);
+
+  final Color bg;
+  final Color fg;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    DiagonalStripesThick(
+      bgColor: bg.withValues(alpha: 0.2),
+      fgColor: fg.withValues(alpha: 0.2),
+      featuresCount: 36,
+    ).paintOnWidget(
+      canvas,
+      size,
+      patternScaleBehavior: PatternScaleBehavior.canvas,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
 }
 
 extension ListenableExtension on Listenable {

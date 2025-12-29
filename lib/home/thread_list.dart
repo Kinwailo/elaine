@@ -1,6 +1,7 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -13,7 +14,7 @@ import '../services/data_store.dart';
 import '../widgets/app_link.dart';
 import 'group_store.dart';
 import 'post_store.dart';
-import 'settings_data.dart';
+import '../settings/settings_data.dart';
 import 'thread_store.dart';
 import 'write_dialog.dart';
 import 'write_store.dart';
@@ -241,6 +242,106 @@ class ThreadTile extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final threads = Modular.get<ThreadStore>();
+    final list = getSetting<List>('ui', 'blockList');
+    final block = list.contains(thread.data.sender);
+    final openHierarchy = getSetting<bool>('ui', 'openHierarchy');
+    final openLastRead = getSetting<bool>('ui', 'openLastRead');
+    final listenable = useMemoized(
+      () => DataValue.changed.where(
+        (e) => [
+          'settings.ui.openHierarchy',
+          'settings.ui.openLastRead',
+          'settings.ui.enableBlock',
+          'settings.ui.blockList',
+        ].contains(e?.$1),
+        null,
+      ),
+    );
+    useListenable(listenable);
+    return AppLink(
+      root: thread.data.group,
+      paths: [
+        '${thread.data.number}',
+        if (openHierarchy) ...[
+          'post',
+          '1',
+        ] else if (openLastRead && thread.read.value > 1)
+          '${thread.read.value}',
+      ],
+      onTap: () => threads.updateTile(thread.data.number),
+      child: block && getSetting<bool>('ui', 'enableBlock')
+          ? ThreadBlock(key: key, index, thread)
+          : ThreadNormal(key: key, index, thread),
+    );
+  }
+}
+
+class ThreadBlock extends HookWidget {
+  const ThreadBlock(this.index, this.thread, {super.key});
+
+  final int index;
+  final ThreadData thread;
+
+  @override
+  Widget build(BuildContext context) {
+    var colorScheme = Theme.of(context).colorScheme;
+    var color = index % 2 == 0
+        ? colorScheme.surface.withValues(alpha: 0.3)
+        : colorScheme.surface.withValues(alpha: 0.1);
+    final showDate = switch (getSetting<int>('ui', 'order')) {
+      1 => thread.data.latest,
+      _ => thread.data.date,
+    };
+    return CustomPaint(
+      painter: BlockPainter(colorScheme.surfaceTint, Colors.yellow),
+      child: InkWell(
+        mouseCursor: SystemMouseCursors.click,
+        child: TweenAnimationBuilder(
+          tween: ColorTween(begin: color, end: color),
+          duration: Durations.short4,
+          builder: (context, value, _) {
+            return Container(
+              width: double.infinity,
+              color: value,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 2,
+                  horizontal: 16,
+                ),
+                child: Opacity(
+                  opacity: 0.6,
+                  child: Row(
+                    children: [
+                      Text(thread.data.sender, style: senderTextStyle),
+                      const SizedBox(width: 8),
+                      TooltipVisibility(
+                        visible: showDate.relative != showDate.format,
+                        child: Tooltip(
+                          message: showDate.format,
+                          child: Text(showDate.relative, style: subTextStyle),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class ThreadNormal extends HookWidget {
+  const ThreadNormal(this.index, this.thread, {super.key});
+
+  final int index;
+  final ThreadData thread;
+
+  @override
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final groups = Modular.get<GroupStore>();
     final threads = Modular.get<ThreadStore>();
@@ -253,7 +354,7 @@ class ThreadTile extends HookWidget {
         ? colorScheme.secondary.withValues(alpha: 0.16)
         : colorScheme.tertiary.withValues(alpha: 0.16);
     final date = thread.data.date;
-    final showDate = switch (DataValue('settings', 'ui').get<int>('order')) {
+    final showDate = switch (getSetting<int>('ui', 'order')) {
       1 => thread.data.latest,
       _ => date,
     };
@@ -272,105 +373,78 @@ class ThreadTile extends HookWidget {
     useListenable(thread.read);
     useListenable(thread.readArray);
     useListenable(posts.postMode.postFrame);
-
-    final openHierarchy = getSetting<bool>('ui', 'openHierarchy');
-    final openLastRead = getSetting<bool>('ui', 'openLastRead');
-    final listenable = useMemoized(
-      () => DataValue.changed.where(
-        (e) => [
-          'settings.ui.openHierarchy',
-          'settings.ui.openLastRead',
-        ].contains(e?.$1),
-        null,
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        border: !newThread
+            ? null
+            : Border(
+                left: BorderSide(
+                  color: newColor.darken(index % 2 * 10),
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
+              ),
       ),
-    );
-    useListenable(listenable);
-    return AppLink(
-      root: thread.data.group,
-      paths: [
-        '${thread.data.number}',
-        if (openHierarchy) ...[
-          'post',
-          '1',
-        ] else if (openLastRead && thread.read.value > 1)
-          '${thread.read.value}',
-      ],
-      onTap: () => threads.updateTile(thread.data.number),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          border: !newThread
-              ? null
-              : Border(
-                  left: BorderSide(
-                    color: newColor.darken(index % 2 * 10),
-                    width: 2,
-                    style: BorderStyle.solid,
+      child: Opacity(
+        opacity: unread == 0 ? 0.5 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 4,
+            children: [
+              Row(
+                children: [
+                  Text(thread.data.sender, style: senderTextStyle),
+                  const SizedBox(width: 8),
+                  TooltipVisibility(
+                    visible: showDate.relative != showDate.format,
+                    child: Tooltip(
+                      message: showDate.format,
+                      child: Text(showDate.relative, style: subTextStyle),
+                    ),
                   ),
-                ),
-        ),
-        child: Opacity(
-          opacity: unread == 0 ? 0.5 : 1.0,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 4,
-              children: [
-                Row(
-                  children: [
-                    Text(thread.data.sender, style: senderTextStyle),
-                    const SizedBox(width: 8),
-                    TooltipVisibility(
-                      visible: showDate.relative != showDate.format,
-                      child: Tooltip(
-                        message: showDate.format,
-                        child: Text(showDate.relative, style: subTextStyle),
-                      ),
-                    ),
-                    Spacer(),
-                    // if (hot > 0) Text('🔥$hot', style: subTextStyle),
-                    const SizedBox(width: 16),
-                    Text('💬${thread.data.total}', style: subTextStyle),
-                  ],
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Flexible(
-                      flex: 1,
-                      child: Text(thread.data.subject, style: mainTextStyle),
-                    ),
-                    OverflowBox(
-                      fit: OverflowBoxFit.deferToChild,
-                      alignment: AlignmentGeometry.topLeft,
-                      child: !newThread && newReply && unread > 0
-                          ? Badge(backgroundColor: newColor)
-                          : Badge.count(
-                              count: unread,
-                              offset: Offset(0, -4),
-                              alignment: AlignmentGeometry.xy(-1, 0),
-                              backgroundColor: newReply
-                                  ? newColor
-                                  : unreadColor,
-                              isLabelVisible:
-                                  unread > 0 && unread != thread.data.total,
-                              child: SizedBox(width: 1),
-                            ),
-                    ),
-                  ],
-                ),
-                // Badge.count(
-                //   count: unread,
-                //   backgroundColor: newReply ? newColor : unreadColor,
-                //   offset: Offset.fromDirection(-20 / 180 * 3.1415, 12),
-                //   isLabelVisible:
-                //       (!newThread && newReply && unread > 0) ||
-                //       (unread > 0 && unread != thread.data.total),
-                //   child: Text(thread.data.subject, style: mainTextStyle),
-                // ),
-              ],
-            ),
+                  Spacer(),
+                  // if (hot > 0) Text('🔥$hot', style: subTextStyle),
+                  const SizedBox(width: 16),
+                  Text('💬${thread.data.total}', style: subTextStyle),
+                ],
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    flex: 1,
+                    child: Text(thread.data.subject, style: mainTextStyle),
+                  ),
+                  OverflowBox(
+                    fit: OverflowBoxFit.deferToChild,
+                    alignment: AlignmentGeometry.topLeft,
+                    child: !newThread && newReply && unread > 0
+                        ? Badge(backgroundColor: newColor)
+                        : Badge.count(
+                            count: unread,
+                            offset: Offset(0, -4),
+                            alignment: AlignmentGeometry.xy(-1, 0),
+                            backgroundColor: newReply ? newColor : unreadColor,
+                            isLabelVisible:
+                                unread > 0 && unread != thread.data.total,
+                            child: SizedBox(width: 1),
+                          ),
+                  ),
+                ],
+              ),
+              // Badge.count(
+              //   count: unread,
+              //   backgroundColor: newReply ? newColor : unreadColor,
+              //   offset: Offset.fromDirection(-20 / 180 * 3.1415, 12),
+              //   isLabelVisible:
+              //       (!newThread && newReply && unread > 0) ||
+              //       (unread > 0 && unread != thread.data.total),
+              //   child: Text(thread.data.subject, style: mainTextStyle),
+              // ),
+            ],
           ),
         ),
       ),

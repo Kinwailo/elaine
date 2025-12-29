@@ -14,6 +14,7 @@ const uiShowLess = '顯示較少';
 
 const replyText = '回覆';
 const blockText = '屏蔽此人';
+const blockContentText = '內容被屏蔽';
 const originalText = '原文';
 
 const emptyText = '無內文';

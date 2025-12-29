@@ -1,13 +1,15 @@
-import 'package:elaine/home/settings_data.dart';
-import 'package:elaine/services/data_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
+import '../services/data_store.dart';
+import 'settings_block_list.dart';
+import 'settings_data.dart';
+import 'settings_number.dart';
+import 'settings_switch.dart';
 
 class SettingsDialog extends HookWidget {
   const SettingsDialog({super.key});
@@ -99,8 +101,10 @@ class SettingsGroup extends HookWidget {
               children: data
                   .map(
                     (e) => switch (e['default'].runtimeType) {
-                      const (bool) => SettingsSwitchTile(group, e),
-                      const (int) => SettingsNumberTile(group, e),
+                      const (bool) => SettingsSwitch(group, e),
+                      const (int) => SettingsNumber(group, e),
+                      const (List<String>) when e['setting'] == 'blockList' =>
+                        SettingsBlockList(group, e),
                       _ => null,
                     },
                   )
@@ -135,92 +139,6 @@ abstract class SettingsTileBase extends HookWidget {
     return useListenableSelector(
       listenable,
       () => (listenable?.value?.$2 ?? true) as bool,
-    );
-  }
-}
-
-class SettingsSwitchTile extends SettingsTileBase {
-  const SettingsSwitchTile(super.group, super.settings, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final value = useState<bool>(getSetting(group, settings['setting']));
-    void onTap() {
-      setSetting(group, settings['setting'], !value.value);
-      value.value = !value.value;
-    }
-
-    final enabled = useEnabledBy();
-    return ListTile(
-      dense: true,
-      enabled: enabled,
-      contentPadding: EdgeInsets.only(left: 12),
-      onTap: onTap,
-      title: Text(settings['name']),
-      trailing: Transform.scale(
-        scale: 0.6,
-        child: Switch(
-          value: value.value,
-          onChanged: !enabled ? null : (_) => onTap(),
-        ),
-      ),
-    );
-  }
-}
-
-class SettingsNumberTile extends SettingsTileBase {
-  const SettingsNumberTile(super.group, super.settings, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final value = useValueNotifier<int>(getSetting(group, settings['setting']));
-    final text = useTextEditingController(text: '${value.value}');
-    final delta = useValueNotifier(0.0);
-    final step = settings['step'] as int;
-    final min = settings['min'] as int;
-    final max = settings['max'] as int;
-    void setValue(int v) {
-      v = v.clamp(min, max);
-      value.value = v;
-      text.text = '$v';
-      setSetting(group, settings['setting'], v);
-    }
-
-    final enabled = useEnabledBy();
-    return GestureDetector(
-      onHorizontalDragStart: (_) => delta.value = 0.0,
-      onHorizontalDragUpdate: (details) {
-        delta.value += details.primaryDelta ?? 0.0;
-        setValue(value.value + step * (delta.value ~/ 20.0));
-        delta.value = delta.value.remainder(20.0);
-      },
-      child: ListTile(
-        dense: true,
-        enabled: enabled,
-        mouseCursor: enabled
-            ? SystemMouseCursors.resizeLeftRight
-            : SystemMouseCursors.basic,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12),
-        onTap: () {},
-        title: Text(settings['name']),
-        trailing: TextField(
-          enabled: enabled,
-          controller: text,
-          style: subTextStyle,
-          textAlign: TextAlign.center,
-          decoration: InputDecoration.collapsed(
-            hintText: null,
-            border: UnderlineInputBorder(),
-            constraints: BoxConstraints(maxWidth: 40),
-          ),
-          keyboardType: TextInputType.number,
-          inputFormatters: <TextInputFormatter>[
-            FilteringTextInputFormatter.digitsOnly,
-          ],
-          onSubmitted: (value) =>
-              setValue(int.tryParse(text.text) ?? settings['default']),
-        ),
-      ),
     );
   }
 }

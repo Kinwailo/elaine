@@ -53,6 +53,27 @@ const settingsData = <SettingsItem>[
     ],
   },
   {
+    'name': '主題整理',
+    'setting': 'ui',
+    'data': [
+      {
+        'name': '閱讀歷史儲存天數：',
+        'setting': 'readHistoryDay',
+        'default': 7,
+        'step': 1,
+        'min': 2,
+        'max': 30,
+      },
+      {'name': '啟用屏蔽功能', 'setting': 'enableBlock', 'default': true},
+      {
+        'name': '屏蔽人員名單：',
+        'setting': 'blockList',
+        'enabledBy': 'enableBlock',
+        'default': <String>[],
+      },
+    ],
+  },
+  {
     'name': '發文顯示',
     'setting': 'ui',
     'data': [

@@ -6,10 +6,11 @@ import '../app/const.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
 import '../services/data_store.dart';
+import '../settings/settings_data.dart';
 import '../widgets/chip_item.dart';
 import 'group_store.dart';
 import 'post_store.dart';
-import 'settings_dialog.dart';
+import '../settings/settings_dialog.dart';
 import 'thread_list.dart';
 import 'post_list.dart';
 import 'thread_store.dart';
@@ -174,9 +175,12 @@ class SideBar extends HookWidget {
     final groups = Modular.get<GroupStore>();
     final threads = Modular.get<ThreadStore>();
     final group = groups.selected.value;
-    final dv = useMemoized(() => DataValue('settings', 'ui'));
     useListenable(groups.selected);
-    useListenable(dv);
+    final key = 'settings.ui.order';
+    final listenable = useMemoized(
+      () => DataValue.changed.where((e) => e?.$1 == key, null),
+    );
+    useListenable(listenable);
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
@@ -192,32 +196,32 @@ class SideBar extends HookWidget {
                 ChipItem(
                   uiOrderTitle,
                   selectable: true,
-                  selected: dv.get<int>('order') == 0,
+                  selected: getSetting<int>('ui', 'order') == 0,
                   onSelect: (v) {
-                    if (v) dv.set('order', 0);
+                    if (v) setSetting('ui', 'order', 0);
                     threads.refresh();
-                    return dv.get<int>('order') == 0;
+                    return getSetting<int>('ui', 'order') == 0;
                   },
                 ),
                 ChipItem(
                   uiOrderReply,
                   selectable: true,
-                  selected: dv.get<int>('order') == 1,
+                  selected: getSetting<int>('ui', 'order') == 1,
                   onSelect: (v) {
-                    if (v) dv.set('order', 1);
+                    if (v) setSetting('ui', 'order', 1);
                     threads.refresh();
-                    return dv.get<int>('order') == 1;
+                    return getSetting<int>('ui', 'order') == 1;
                   },
                 ),
                 if (false)
                   ChipItem(
                     uiOrderHot,
                     selectable: true,
-                    selected: dv.get<int>('order') == 2,
+                    selected: getSetting<int>('ui', 'order') == 2,
                     onSelect: (v) {
-                      if (v) dv.set('order', 2);
+                      if (v) setSetting('ui', 'order', 2);
                       threads.refresh();
-                      return dv.get<int>('order') == 2;
+                      return getSetting<int>('ui', 'order') == 2;
                     },
                   ),
               ],

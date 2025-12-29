@@ -32,6 +32,7 @@ dependencies:
   hashlib: ^2.2.0
   image: ^4.7.2
   file_picker: ^10.3.8
+  patterns_canvas: ^0.5.0
 
 dev_dependencies:
   flutter_test:
