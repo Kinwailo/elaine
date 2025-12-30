@@ -44,16 +44,7 @@ class AppWidget extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
       ],
       supportedLocales: [
-        const Locale.fromSubtags(
-          languageCode: 'zh',
-          scriptCode: 'Hant',
-          countryCode: 'TW',
-        ),
-        const Locale.fromSubtags(
-          languageCode: 'zh',
-          scriptCode: 'Hant',
-          countryCode: 'HK',
-        ),
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
       ],
     );
   }

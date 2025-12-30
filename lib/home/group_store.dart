@@ -113,8 +113,23 @@ class GroupStore {
     return groups;
   }
 
+  void removeOldHistory() {
+    for (var group in items.value) {
+      final ds = DataStore.getStore(group.data.group);
+      for (var name in ds.names.toList()) {
+        final data = ds.getData(name);
+        final latestRead = parseDateTime(data?['latestRead']);
+        final day = getSetting<int>('ui', 'readHistoryDay');
+        if (DateTime.now().difference(latestRead).inDays > day) {
+          ds.remove(name);
+        }
+      }
+    }
+  }
+
   Future<void> refresh() async {
     final groups = await update();
+    removeOldHistory();
 
     final threads = Modular.get<ThreadStore>();
     if (getSetting<bool>('ui', 'refreshBeforeSync')) threads.refresh();

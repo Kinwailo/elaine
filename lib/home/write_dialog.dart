@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../app/const.dart';
@@ -79,59 +80,62 @@ class WriteDialog extends HookWidget {
         borderRadius: BorderRadiusGeometry.circular(8),
         child: ScaffoldMessenger(
           key: messengerKey,
-          child: Scaffold(
-            backgroundColor: colorScheme.surfaceContainerHigh,
-            appBar: AppBar(
-              toolbarHeight: kToolbarHeight - 12,
-              automaticallyImplyLeading: false,
-              title: Text(write.getTitle()),
-              actions: [
-                CloseButton(
-                  style: IconButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                ),
-              ],
-              bottom: const PreferredSize(
-                preferredSize: Size.fromHeight(1),
-                child: Divider(height: 1),
-              ),
-            ),
-            floatingActionButton: Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Opacity(
-                opacity: !sendable ? 0.3 : 1.0,
-                child: FloatingActionButton.small(
-                  onPressed: !sendable ? null : write.send,
-                  child: Icon(Icons.send),
-                ),
-              ),
-            ),
-            body: Scrollbar(
-              controller: scrollController,
-              thumbVisibility: true,
-              trackVisibility: true,
-              thickness: 8,
-              child: CustomScrollView(
-                controller: scrollController,
-                slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
-                    sliver: SuperSliverList.list(
-                      children: [
-                        const WriteIdentity(),
-                        if (write.postData.value == null) const WriteSubject(),
-                        const WriteContent(),
-                        const WriteSignature(),
-                        if (write.postData.value != null) const WriteQuote(),
-                        const WriteAttachment(),
-                        const SizedBox(height: 66),
-                      ],
+          child: PointerInterceptor(
+            child: Scaffold(
+              backgroundColor: colorScheme.surfaceContainerHigh,
+              appBar: AppBar(
+                toolbarHeight: kToolbarHeight - 12,
+                automaticallyImplyLeading: false,
+                title: Text(write.getTitle()),
+                actions: [
+                  CloseButton(
+                    style: IconButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
                     ),
                   ),
                 ],
+                bottom: const PreferredSize(
+                  preferredSize: Size.fromHeight(1),
+                  child: Divider(height: 1),
+                ),
+              ),
+              floatingActionButton: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Opacity(
+                  opacity: !sendable ? 0.3 : 1.0,
+                  child: FloatingActionButton.small(
+                    onPressed: !sendable ? null : write.send,
+                    child: Icon(Icons.send),
+                  ),
+                ),
+              ),
+              body: Scrollbar(
+                controller: scrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                thickness: 8,
+                child: CustomScrollView(
+                  controller: scrollController,
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
+                      sliver: SuperSliverList.list(
+                        children: [
+                          const WriteIdentity(),
+                          if (write.postData.value == null)
+                            const WriteSubject(),
+                          const WriteContent(),
+                          const WriteSignature(),
+                          if (write.postData.value != null) const WriteQuote(),
+                          const WriteAttachment(),
+                          const SizedBox(height: 66),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

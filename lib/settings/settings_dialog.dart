@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
@@ -37,43 +38,45 @@ class SettingsDialog extends HookWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadiusGeometry.circular(8),
-        child: Scaffold(
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          appBar: AppBar(
-            toolbarHeight: kToolbarHeight - 12,
-            automaticallyImplyLeading: false,
-            title: Text(settingsText),
-            actions: [
-              CloseButton(
-                style: IconButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-              ),
-            ],
-            bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Divider(height: 1),
-            ),
-          ),
-          body: Scrollbar(
-            controller: scrollController,
-            thumbVisibility: true,
-            trackVisibility: true,
-            thickness: 8,
-            child: CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
-                  sliver: SuperSliverList.list(
-                    children: settingsData
-                        .map((e) => SettingsGroup(e))
-                        .toList(),
+        child: PointerInterceptor(
+          child: Scaffold(
+            backgroundColor: colorScheme.surfaceContainerHigh,
+            appBar: AppBar(
+              toolbarHeight: kToolbarHeight - 12,
+              automaticallyImplyLeading: false,
+              title: Text(settingsText),
+              actions: [
+                CloseButton(
+                  style: IconButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
                   ),
                 ),
               ],
+              bottom: const PreferredSize(
+                preferredSize: Size.fromHeight(1),
+                child: Divider(height: 1),
+              ),
+            ),
+            body: Scrollbar(
+              controller: scrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              thickness: 8,
+              child: CustomScrollView(
+                controller: scrollController,
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
+                    sliver: SuperSliverList.list(
+                      children: settingsData
+                          .map((e) => SettingsGroup(e))
+                          .toList(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
