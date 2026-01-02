@@ -485,7 +485,10 @@ class PostLinkCard extends HookWidget {
               if (link.image != null)
                 TableCell(
                   verticalAlignment: TableCellVerticalAlignment.fill,
-                  child: Center(child: PostImage.mini(link.image!)),
+                  child: SizedBox.square(
+                    dimension: 108,
+                    child: PostImage.fill(link.image!),
+                  ),
                 ),
               InkWell(
                 onTap: () => launchUrlString(link.url),
@@ -882,20 +885,21 @@ class PostImagePreviews extends HookWidget {
 class PostImage extends HookWidget {
   const PostImage(this.image, {super.key}) : mini = false;
   const PostImage.mini(this.image, {super.key}) : mini = true;
+  const PostImage.fill(this.image, {super.key}) : mini = null;
 
   final FileData image;
-  final bool mini;
+  final bool? mini;
 
   @override
   Widget build(BuildContext context) {
     final maxWidth = getSetting<int>('ui', 'imageMaxWidth').toDouble();
     final maxHeight = getSetting<int>('ui', 'previewMaxHeight').toDouble();
-    final width = mini
+    final width = mini ?? true
         ? null
         : image.size!.width > maxWidth
         ? maxWidth
         : null;
-    final height = mini
+    final height = mini ?? false
         ? image.size!.height > maxHeight
               ? maxHeight
               : null
@@ -903,15 +907,16 @@ class PostImage extends HookWidget {
     final showOcr = useState(false);
     final scrollController = useScrollController();
     return Stack(
+      fit: mini != null ? StackFit.loose : StackFit.expand,
       children: [
         Image.memory(
           image.data,
           width: width,
           height: height,
-          fit: mini ? BoxFit.cover : null,
+          fit: mini ?? true ? BoxFit.cover : null,
           errorBuilder: (_, _, _) => Image.memory(missingIcon),
         ),
-        if (image.ocr != null && !mini && showOcr.value)
+        if (image.ocr != null && mini == false && showOcr.value)
           Positioned.fill(
             left: -1,
             top: -1,
@@ -933,7 +938,7 @@ class PostImage extends HookWidget {
               ),
             ),
           ),
-        if (image.ocr != null && !mini)
+        if (image.ocr != null && mini == false)
           Positioned(
             top: 8,
             right: 8,
