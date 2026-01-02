@@ -8,16 +8,6 @@ import 'package:patterns_canvas/patterns_canvas.dart';
 
 import 'const.dart';
 
-int get hotRef => DateTime.now().difference(DateTime(2025, 10, 1)).inSeconds;
-
-ValueNotifier<T?> futureToNotifier<T>(Future<T> future, {T? initialValue}) {
-  final notifier = ValueNotifier<T?>(initialValue);
-  future.then((value) {
-    notifier.value = value;
-  });
-  return notifier;
-}
-
 Future<Size> getImageSize(Uint8List data) async {
   final completer = Completer<Size>();
   final image = Image.memory(data);

@@ -5,12 +5,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'package:linkify/linkify.dart';
+import 'package:linkify/linkify.dart' hide UrlLinkifier;
 import 'package:super_sliver_list/super_sliver_list.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../app/const.dart';
+import '../app/linkify.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
 import '../services/data_store.dart';
@@ -404,7 +405,11 @@ class PostText extends HookWidget {
 
 List<InlineSpan> linkifyTextSpan(PostData post) {
   final opt = const LinkifyOptions(humanize: false);
-  final linkifies = linkify(post.getText(), options: opt);
+  final linkifies = linkify(
+    post.getText(),
+    options: opt,
+    linkifiers: [UrlLinkifier()],
+  );
   final spans = linkifies.expand((e) {
     if (e is! LinkableElement) {
       return [TextSpan(text: e.text, style: mainTextStyle)];

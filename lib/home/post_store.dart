@@ -7,10 +7,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:linkify/linkify.dart';
+import 'package:linkify/linkify.dart' hide UrlLinkifier;
 import 'package:hashlib/hashlib.dart';
 
 import '../app/const.dart';
+import '../app/linkify.dart';
 import '../app/string_utils.dart';
 import '../app/utils.dart';
 import '../services/cloud_service.dart';
@@ -106,7 +107,7 @@ class PostData extends ChangeNotifier {
   void runLinkify() {
     if (!synced.value) return;
     final opt = const LinkifyOptions(humanize: false);
-    final links = linkify(getText(), options: opt)
+    final links = linkify(getText(), options: opt, linkifiers: [UrlLinkifier()])
         .whereType<UrlElement>()
         .map((e) => e.url)
         .where((e) => const ['http', 'https'].contains(Uri.parse(e).scheme))
