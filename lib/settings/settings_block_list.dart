@@ -14,9 +14,8 @@ class SettingsBlockList extends SettingsTileBase {
     final colorScheme = Theme.of(context).colorScheme;
     final list = getSetting<List>(group, settings['setting']);
     final enabled = useEnabledBy();
-    final key = 'settings.ui.blockList';
     final listenable = useMemoized(
-      () => DataValue.changed.where((e) => e?.$1 == key, null),
+      () => DataValue.changed.where((e) => e?.$1 == settingKey, null),
     );
     useListenable(listenable);
     return ListTile(
@@ -47,8 +46,11 @@ class SettingsBlockList extends SettingsTileBase {
                             labelPadding: EdgeInsets.only(left: 6, right: 4),
                             label: Text(e),
                             onDeleted: () {
-                              final list = getSetting<List>('ui', 'blockList');
-                              setSetting('ui', 'blockList', [
+                              final list = getSetting<List>(
+                                group,
+                                settings['setting'],
+                              );
+                              setSetting(group, settings['setting'], [
                                 ...list.where((b) => b != e),
                               ]);
                             },

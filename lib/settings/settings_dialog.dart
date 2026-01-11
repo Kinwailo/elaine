@@ -9,6 +9,7 @@ import '../app/utils.dart';
 import '../services/data_store.dart';
 import 'settings_block_list.dart';
 import 'settings_data.dart';
+import 'settings_identities.dart';
 import 'settings_number.dart';
 import 'settings_switch.dart';
 
@@ -107,6 +108,7 @@ class SettingsGroup extends HookWidget {
                       const (bool) => SettingsSwitch(group, e),
                       const (int) => SettingsNumber(group, e),
                       _ => switch (e['setting']) {
+                        'identities' => SettingsIdentities(group, e),
                         'blockList' => SettingsBlockList(group, e),
                         _ => null,
                       },
@@ -128,6 +130,8 @@ abstract class SettingsTileBase extends HookWidget {
 
   final String group;
   final SettingsItem settings;
+
+  String get settingKey => 'settings.$group.${settings['setting']}';
 
   String get enabledBy => settings['enabledBy'] ?? '';
   String get enabledByKey => 'settings.$group.$enabledBy';

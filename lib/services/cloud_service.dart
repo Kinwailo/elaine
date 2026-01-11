@@ -152,7 +152,7 @@ class CloudService {
     final msgids = posts.map((e) => e.msgid).toList();
     final data = '[${msgids.map((e) => '"$e"').join(',')}]';
     Future.delayed(
-      0.5.seconds,
+      1.seconds,
       () async => functions.createExecution(
         functionId: 'elaine_worker',
         xasync: true,

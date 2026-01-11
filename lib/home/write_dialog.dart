@@ -194,8 +194,8 @@ class WriteIdentity extends HookWidget {
                 decoration: InputDecoration(
                   isDense: true,
                   filled: false,
-                  border: UnderlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
+                  border: const UnderlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
                     vertical: 4,
                     horizontal: 16,
                   ),
@@ -214,8 +214,8 @@ class WriteIdentity extends HookWidget {
                 decoration: InputDecoration(
                   isDense: true,
                   filled: false,
-                  border: UnderlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
+                  border: const UnderlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
                     vertical: 4,
                     horizontal: 16,
                   ),
@@ -255,8 +255,11 @@ class WriteSubject extends HookWidget {
           decoration: InputDecoration(
             isDense: true,
             filled: false,
-            border: UnderlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+            border: const UnderlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 4,
+              horizontal: 16,
+            ),
             labelText: subjectText,
             errorText: subject.text.isNotEmpty
                 ? null
@@ -292,8 +295,8 @@ class WriteContent extends HookWidget {
               decoration: InputDecoration(
                 isDense: true,
                 filled: false,
-                border: UnderlineInputBorder(),
-                contentPadding: EdgeInsets.only(
+                border: const UnderlineInputBorder(),
+                contentPadding: const EdgeInsets.only(
                   left: 16,
                   top: 16,
                   right: 16,
