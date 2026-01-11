@@ -393,7 +393,7 @@ class PostText extends HookWidget {
                 ),
               ],
             )
-          else if (post.data.html)
+          else if (post.html)
             WidgetSpan(child: Html(data: post.getText()))
           else
             ...linkifyTextSpan(post),

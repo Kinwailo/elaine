@@ -55,9 +55,8 @@ class Post {
   final String sender;
   final int index;
   final int total;
-  final String? text;
-  final bool html;
-  final String? textFile;
+  final String? body;
+  final String text;
   final List<String> files;
   final DateTime date;
   final int number;
@@ -73,9 +72,8 @@ class Post {
       sender = ((data['sender'] ?? '') as String).trim(),
       index = (data['index'] ?? 0) as int,
       total = (data['total'] ?? 0) as int,
-      text = (data['text'] as String?),
-      html = (data['html'] ?? false) as bool,
-      textFile = data['textfile'] as String?,
+      body = data['body'] as String?,
+      text = ((data['text'] ?? []) as List).map((e) => e as String).join(),
       files = ((data['files'] ?? []) as List).map((e) => e as String).toList(),
       date = parseDateTime(data['date']),
       number = (data['num'] ?? 0) as int,
@@ -91,9 +89,8 @@ class Post {
       sender = post.sender,
       index = post.index,
       total = post.total,
+      body = post.body,
       text = post.text,
-      html = post.html,
-      textFile = post.textFile,
       files = post.files,
       date = post.date,
       number = post.number,

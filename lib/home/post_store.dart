@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
@@ -8,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:linkify/linkify.dart' hide UrlLinkifier;
-import 'package:hashlib/hashlib.dart';
 
 import '../app/const.dart';
 import '../app/linkify.dart';
@@ -55,6 +53,9 @@ class PostData extends ChangeNotifier {
   int get total => _total;
   int _total = 0;
 
+  bool get text => _data.body == 'text';
+  bool get html => _data.body == 'html';
+
   ThreadData? get thread => _thread;
   final ThreadData? _thread;
 
@@ -70,8 +71,8 @@ class PostData extends ChangeNotifier {
     : _data = post,
       _total = post.total,
       _thread = thread {
-    if (post.text == null) return;
-    _sync.value = post.textFile == null;
+    if (post.body == null) return;
+    _sync.value = post.body != null;
     _images = {for (var id in post.files) id: ValueNotifier<FileData?>(null)};
     runLinkify();
   }
@@ -84,7 +85,7 @@ class PostData extends ChangeNotifier {
 
   void syncFrom(Post post) {
     _data = post;
-    _sync.value = post.textFile == null;
+    _sync.value = post.body != null;
     _images = {for (var id in post.files) id: ValueNotifier<FileData?>(null)};
     runLinkify();
     setVisible(_visiblePending);
@@ -93,14 +94,6 @@ class PostData extends ChangeNotifier {
 
   void syncError() {
     _sync.value = null;
-    notifyListeners();
-  }
-
-  void setText(String text) {
-    _text = text;
-    _sync.value = true;
-    runLinkify();
-    setVisible(_visiblePending);
     notifyListeners();
   }
 
@@ -150,7 +143,7 @@ class PostData extends ChangeNotifier {
   }
 
   String getText() {
-    final text = (_text ?? data.text ?? '');
+    final text = _text ?? data.text;
     final strip = original ? text : text.stripAll;
     return switch (_sync.value) {
       null => syncTimeoutText,
@@ -382,7 +375,6 @@ class PostStore {
 
   void _setupPosts(Iterable<PostData> posts) {
     for (var post in posts) {
-      _loadTextFile(post);
       final qMsgid = _getQuote(post);
       if (_map.containsKey(qMsgid)) post.setQuote(_map[qMsgid]!);
     }
@@ -391,17 +383,13 @@ class PostStore {
 
   Future<void> _sync(Iterable<Post> posts) async {
     final cloud = Modular.get<CloudService>();
-    final futures = await cloud.syncPosts(posts.where((e) => e.text == null));
+    final futures = await cloud.syncPosts(posts.where((e) => e.body == null));
     for (var e in futures.entries) {
       if (_map.containsKey(e.key)) {
-        e.value.then((v) {
-          if (v == null) {
-            _map[e.key]?.syncError();
-          } else {
-            _map[e.key]?.syncFrom(v);
-            _loadTextFile(_map[e.key]!);
-          }
-        });
+        e.value.then(
+          (v) =>
+              v == null ? _map[e.key]?.syncError() : _map[e.key]?.syncFrom(v),
+        );
       }
     }
   }
@@ -411,7 +399,7 @@ class PostStore {
     final cloud = Modular.get<CloudService>();
     final items = await cloud.getPostsByMsgids([post.data.msgid]);
     final data = items.firstOrNull;
-    if (data != null && data.text != null) {
+    if (data != null && data.body != null) {
       post.syncFrom(data);
     } else {
       _sync([post._data]);
@@ -449,13 +437,6 @@ class PostStore {
     }
     if (!_map.containsKey(qMsgid)) return;
     post.setQuote(_map[qMsgid]!);
-  }
-
-  Future<void> _loadTextFile(PostData post) async {
-    if (post.data.textFile == null) return;
-    final cloud = Modular.get<CloudService>();
-    final (_, data) = await cloud.getFile(post.data.textFile!);
-    post.setText(utf8.decode(data));
   }
 
   Future<void> loadImage(PostData post) async {
