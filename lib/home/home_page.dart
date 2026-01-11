@@ -213,17 +213,16 @@ class SideBar extends HookWidget {
                     return getSetting<int>('ui', 'order') == 1;
                   },
                 ),
-                if (false)
-                  ChipItem(
-                    uiOrderHot,
-                    selectable: true,
-                    selected: getSetting<int>('ui', 'order') == 2,
-                    onSelect: (v) {
-                      if (v) setSetting('ui', 'order', 2);
-                      threads.refresh();
-                      return getSetting<int>('ui', 'order') == 2;
-                    },
-                  ),
+                ChipItem(
+                  uiOrderHot,
+                  selectable: true,
+                  selected: getSetting<int>('ui', 'order') == 2,
+                  onSelect: (v) {
+                    if (v) setSetting('ui', 'order', 2);
+                    threads.refresh();
+                    return getSetting<int>('ui', 'order') == 2;
+                  },
+                ),
               ],
             ),
           ),

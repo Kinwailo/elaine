@@ -475,10 +475,7 @@ class PostStore {
     }
     try {
       final size = await getImageSize(bytes);
-      final hash = sha3_256.convert(bytes).hex();
-      final data = await cloud.getDatas(hash);
-      final ocr = data?['ocr'] as String?;
-      return FileData(file.name, bytes, true, size, ocr);
+      return FileData(file.name, bytes, true, size, null);
     } catch (_) {
       return FileData('error', missingIcon, true, Size(16, 16), null);
     }
@@ -495,26 +492,15 @@ class PostStore {
 
   Future<LinkData?> _getLinkData(String url) async {
     final cloud = Modular.get<CloudService>();
-    final hash = sha3_256.string(url, utf8).hex();
-    var data = await cloud.getDatas(hash);
-    data ??= await cloud.getLink(url);
-    if (data == null) return null;
-    if (data['file'] != null) {
-      final imageData = await _loadImageData(data['file']);
-      return LinkData(url, null, null, null, imageData);
-    }
-    final title = data['title'];
-    final desc = data['desc'];
-    FileData? iconData;
-    if (data['icon'] != null) {
-      final icon = await cloud.getDatas(data['icon']);
-      if (icon != null) iconData = await _loadImageData(icon['file']);
-    }
-    FileData? imageData;
-    if (data['image'] != null) {
-      final image = await cloud.getDatas(data['image']);
-      if (image != null) imageData = await _loadImageData(image['file']);
-    }
-    return LinkData(url, title, desc, iconData, imageData);
+    var link = await cloud.getLink(url);
+    if (link == null) return null;
+    final desc = link.desc.isEmpty ? null : link.desc;
+    FileData? iconData = link.icon == null
+        ? null
+        : await _loadImageData(link.icon!);
+    FileData? imageData = link.image == null
+        ? null
+        : await _loadImageData(link.image!);
+    return LinkData(url, link.title, desc, iconData, imageData);
   }
 }

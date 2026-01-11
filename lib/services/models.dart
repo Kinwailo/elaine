@@ -103,3 +103,20 @@ class Post {
       create = post.create,
       update = post.update;
 }
+
+class Link {
+  final String id;
+  final String hash;
+  final String? title;
+  final String desc;
+  final String? icon;
+  final String? image;
+
+  Link(RowData data)
+    : id = (data[r'$id'] ?? '') as String,
+      hash = (data['hash'] ?? '') as String,
+      title = data['title'] as String?,
+      desc = ((data['desc'] ?? []) as List).map((e) => e as String).join(),
+      icon = data['icon'] as String?,
+      image = data['image'] as String?;
+}

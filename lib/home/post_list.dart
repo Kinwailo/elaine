@@ -257,7 +257,7 @@ class PostNormal extends HookWidget {
     final isUnread = posts.read > 0 && post.data.index >= posts.read;
     final isNew =
         isUnread &&
-        posts.read > 0 &&
+        // posts.read > 0 &&
         posts.read < (threads.selected?.data.total ?? 0) &&
         (post.data.date.isAfter(lastRefresh) ||
             post.data.create.isAfter(lastRefresh));

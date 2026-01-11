@@ -7,6 +7,7 @@ import 'package:appwrite/models.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:hashlib/hashlib.dart';
 
 import 'models.dart';
 
@@ -249,19 +250,16 @@ class CloudService {
     return rows.rows.map((e) => Post(e.data)).toList();
   }
 
-  Future<RowData?> getDatas(String hash) async {
+  Future<Link?> getLink(String url) async {
+    final hash = sha3_256.string(url, utf8).hex();
     final rows = await tablesDB.listRows(
       databaseId: 'elaine',
-      tableId: 'datas',
+      tableId: 'links',
       queries: [Query.equal('hash', hash), Query.limit(1)],
     );
     final row = rows.rows.firstOrNull;
-    if (row == null) return null;
-    final data = row.data['datas'] as List;
-    return jsonDecode(data.join()) as RowData;
-  }
+    if (row != null) return Link(row.data);
 
-  Future<RowData?> getLink(String url) async {
     final res = await functions.createExecution(
       functionId: 'elaine_worker',
       xasync: false,
@@ -270,7 +268,9 @@ class CloudService {
       body: '{"action":"grab_link","data":"$url"}',
     );
     if (res.responseStatusCode != 200) return null;
-    return jsonDecode(res.responseBody) as RowData?;
+    final data = jsonDecode(res.responseBody) as RowData?;
+    if (data == null || data.isEmpty) return null;
+    return Link(data);
   }
 
   Future<(File, Uint8List)> getFile(String id) async {
