@@ -39,6 +39,22 @@ void setSetting<T>(String group, String setting, T value) {
 
 const settingsData = <SettingsItem>[
   {
+    'name': '群組',
+    'setting': 'group',
+    'data': [
+      {
+        'name': '身份名單',
+        'setting': 'identities',
+        'default': <Map<String, String>>[],
+      },
+      {
+        'name': '群組身份',
+        'setting': 'groupIdentitiy',
+        'default': <String, String>{},
+      },
+    ],
+  },
+  {
     'name': '重新整理',
     'setting': 'ui',
     'data': [

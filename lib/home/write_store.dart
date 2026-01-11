@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:image/image.dart' as img;
@@ -9,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import '../app/const.dart';
 import '../services/cloud_service.dart';
 import '../services/data_store.dart';
+import '../settings/settings_data.dart';
 import 'group_store.dart';
 import 'post_store.dart';
 
@@ -32,7 +34,7 @@ class ImageData {
 }
 
 class WriteStore {
-  String identity = '';
+  Map<String, dynamic>? identity;
   String name = '';
   String email = '';
   String subject = '';
@@ -70,6 +72,14 @@ class WriteStore {
     postData.value = post;
     succuss = false;
     error = null;
+
+    final ids = getSetting<List>('group', 'identities');
+    final gid = getSetting<Map>('group', 'groupIdentitiy');
+    if (gid.containsKey(_group?.data.group ?? '')) {
+      identity = ids.firstWhereOrNull(
+        (e) => e['name'] == gid[_group!.data.group],
+      );
+    }
     updateSendable();
 
     var re = RegExp(r'^(Re: ?)*');
@@ -96,10 +106,12 @@ class WriteStore {
   }
 
   void updateSendable() {
+    final ids = getSetting<List>('group', 'identities');
+    final nameExist = ids.any((e) => e['name'] == name);
     sendable.value =
         !succuss &&
-        name.isNotEmpty &&
-        email.isNotEmpty &&
+        (identity != null ||
+            !nameExist && name.isNotEmpty && email.isNotEmpty) &&
         subject.isNotEmpty &&
         (body.isNotEmpty || images.value.isNotEmpty);
   }
@@ -191,9 +203,13 @@ class WriteStore {
     error = null;
     sending.value = true;
 
+    final n = identity == null ? name : identity!['name'];
+    final e = identity == null ? email : identity!['email'];
+    final s = identity == null ? signature : identity!['signature'];
+
     var content = body;
-    if (enableSignature && signature.isNotEmpty) {
-      content += '\n\n--\n$signature';
+    if (enableSignature && s.isNotEmpty) {
+      content += '\n\n--\n$s';
     }
     if (enableQuote && quote.isNotEmpty) {
       content +=
@@ -209,7 +225,7 @@ class WriteStore {
     }
 
     final sendData = {
-      'From': '$name <$email>',
+      'From': '$n <$e>',
       'Subject': subject,
       'Newsgroups': group,
       'References': references,
@@ -226,6 +242,16 @@ class WriteStore {
       error = '$writeErrorText$colonText${res['error']}';
     } else {
       succuss = true;
+      if (identity == null) {
+        setSetting('group', 'identities', [
+          ...getSetting<List>('group', 'identities'),
+          {'name': name, 'email': email, 'signature': signature},
+        ]);
+      }
+      setSetting('group', 'groupIdentitiy', {
+        ...getSetting<Map>('group', 'groupIdentitiy'),
+        group: n,
+      });
     }
     sending.value = false;
     updateSendable();

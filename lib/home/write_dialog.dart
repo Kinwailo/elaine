@@ -11,7 +11,7 @@ import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
-import '../services/data_store.dart';
+import '../settings/settings_data.dart';
 import 'write_store.dart';
 
 class WriteDialog extends HookWidget {
@@ -153,12 +153,15 @@ class WriteIdentity extends HookWidget {
     final write = Modular.get<WriteStore>();
     final name = useTextEditingController(text: write.name);
     final email = useTextEditingController(text: write.email);
-    final dv = useMemoized(() => DataValue('settings', 'identities'));
-    final identities = dv.list();
+    final identity = useState(write.identity);
+    final ids = getSetting<List>('group', 'identities');
+    final nameExist = ids.any((e) => e['name'] == name.text);
     final empty = name.text.isEmpty && email.text.isEmpty;
     useListenable(name);
     useListenable(email);
     useValueChanged(empty, (_, void _) => write.updateSendable());
+    useValueChanged(nameExist, (_, void _) => write.updateSendable());
+    useValueChanged(identity.value, (_, void _) => write.updateSendable());
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
@@ -168,24 +171,24 @@ class WriteIdentity extends HookWidget {
           children: [
             DropdownButton(
               isExpanded: true,
-              value: write.identity,
+              value: identity.value,
               items: [
                 const DropdownMenuItem(
-                  value: '',
+                  value: null,
                   child: Text(enterIdentityText),
                 ),
-                ...identities.map(
+                ...ids.cast<Map<String, dynamic>>().map(
                   (e) => DropdownMenuItem(
                     value: e,
-                    child: Text('${dv.get(e)} <${dv.get(e)['email']}>'),
+                    child: Text('${e['name']} <${e['email']}>'),
                   ),
                 ),
               ],
-              onChanged: (String? newValue) {
-                write.identity = newValue ?? '';
+              onChanged: (newValue) {
+                identity.value = write.identity = newValue;
               },
             ),
-            if (write.identity.isEmpty) ...[
+            if (write.identity == null) ...[
               TextField(
                 style: mainTextStyle,
                 decoration: InputDecoration(
@@ -197,7 +200,9 @@ class WriteIdentity extends HookWidget {
                     horizontal: 16,
                   ),
                   labelText: nameText,
-                  errorText: name.text.isNotEmpty
+                  errorText: nameExist
+                      ? identityExist
+                      : name.text.isNotEmpty
                       ? null
                       : nameText + emptyInputText,
                 ),
@@ -324,6 +329,7 @@ class WriteSignature extends HookWidget {
   Widget build(BuildContext context) {
     final write = Modular.get<WriteStore>();
     final signature = useTextEditingController(text: write.signature);
+    final enable = useState(write.enableSignature);
     useListenable(signature);
     return Card(
       child: Padding(
@@ -352,7 +358,7 @@ class WriteSignature extends HookWidget {
               alignment: AlignmentDirectional.topEnd,
               child: Checkbox(
                 value: write.enableSignature,
-                onChanged: (v) => write.enableSignature = v!,
+                onChanged: (v) => enable.value = write.enableSignature = v!,
               ),
             ),
           ],

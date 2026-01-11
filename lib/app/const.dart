@@ -37,6 +37,7 @@ const quoteText = '引文';
 const enterIdentityText = '輸入新身份';
 const orText = '或';
 const emptyInputText = '未輸入';
+const identityExist = '名字已使用在其他身份';
 const quoteSomeoneText = '有人';
 const quoteWriteText = '寫下';
 const charChoppedText = '個文字被削減了';

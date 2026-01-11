@@ -467,7 +467,7 @@ class PostStore {
     for (var url in post.urls) {
       if (post.getLink(url) != null) return;
       final link = await _getLinkData(url);
-      if (link != null) post.setLink(url, link);
+      post.setLink(url, link ?? LinkData(url, null, null, null, null));
     }
   }
 
