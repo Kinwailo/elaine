@@ -51,6 +51,7 @@ const writeNoGroupText = '沒有指定群組';
 const writeResErrorText = '伺服器回應不成功';
 
 const settingsText = '設定';
+const editIdentityText = '修改身份';
 
 const mainTextStyle = TextStyle(fontSize: 18);
 const subTextStyle = TextStyle(color: Colors.grey, fontSize: 14);

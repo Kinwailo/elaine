@@ -12,6 +12,7 @@ import 'package:super_sliver_list/super_sliver_list.dart';
 import '../app/const.dart';
 import '../app/utils.dart';
 import '../settings/settings_data.dart';
+import '../widgets/custom_text_field.dart';
 import 'write_store.dart';
 
 class WriteDialog extends HookWidget {
@@ -169,61 +170,51 @@ class WriteIdentity extends HookWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 8,
           children: [
-            DropdownButton(
-              isExpanded: true,
-              value: identity.value,
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text(enterIdentityText),
-                ),
-                ...ids.cast<Map<String, dynamic>>().map(
-                  (e) => DropdownMenuItem(
-                    value: e,
-                    child: Text('${e['name']} <${e['email']}>'),
-                  ),
-                ),
-              ],
-              onChanged: (newValue) {
-                identity.value = write.identity = newValue;
-              },
-            ),
-            if (write.identity == null) ...[
-              TextField(
-                style: mainTextStyle,
+            ButtonTheme(
+              alignedDropdown: true,
+              child: DropdownButtonFormField(
+                isExpanded: true,
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                initialValue: identity.value,
                 decoration: InputDecoration(
+                  contentPadding: EdgeInsets.zero,
                   isDense: true,
                   filled: false,
-                  border: const UnderlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 16,
-                  ),
-                  labelText: nameText,
-                  errorText: nameExist
-                      ? identityExist
-                      : name.text.isNotEmpty
-                      ? null
-                      : nameText + emptyInputText,
+                  border: UnderlineInputBorder(),
                 ),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text(enterIdentityText),
+                  ),
+                  ...ids.cast<Map<String, dynamic>>().map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text('${e['name']} <${e['email']}>'),
+                    ),
+                  ),
+                ],
+                onChanged: (newValue) {
+                  identity.value = write.identity = newValue;
+                },
+              ),
+            ),
+            if (write.identity == null) ...[
+              CustomTextField(
+                labelText: nameText,
+                errorText: nameExist
+                    ? identityExist
+                    : name.text.isNotEmpty
+                    ? null
+                    : nameText + emptyInputText,
                 controller: name,
                 onChanged: (value) => write.name = name.text,
               ),
-              TextField(
-                style: mainTextStyle,
-                decoration: InputDecoration(
-                  isDense: true,
-                  filled: false,
-                  border: const UnderlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 16,
-                  ),
-                  labelText: emailText,
-                  errorText: email.text.isNotEmpty
-                      ? null
-                      : emailText + emptyInputText,
-                ),
+              CustomTextField(
+                labelText: emailText,
+                errorText: email.text.isNotEmpty
+                    ? null
+                    : emailText + emptyInputText,
                 controller: email,
                 onChanged: (value) => write.email = email.text,
               ),
@@ -250,21 +241,11 @@ class WriteSubject extends HookWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: TextField(
-          style: mainTextStyle,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: false,
-            border: const UnderlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 4,
-              horizontal: 16,
-            ),
-            labelText: subjectText,
-            errorText: subject.text.isNotEmpty
-                ? null
-                : subjectText + emptyInputText,
-          ),
+        child: CustomTextField(
+          labelText: subjectText,
+          errorText: subject.text.isNotEmpty
+              ? null
+              : subjectText + emptyInputText,
           controller: subject,
           onChanged: (value) => write.subject = subject.text,
         ),
@@ -289,26 +270,16 @@ class WriteContent extends HookWidget {
         padding: const EdgeInsets.all(8),
         child: Stack(
           children: [
-            TextField(
-              style: mainTextStyle,
-              maxLines: null,
-              decoration: InputDecoration(
-                isDense: true,
-                filled: false,
-                border: const UnderlineInputBorder(),
-                contentPadding: const EdgeInsets.only(
-                  left: 16,
-                  top: 16,
-                  right: 16,
-                  bottom: 4,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: CustomTextField.multi(
                 labelText: bodyText,
                 errorText: !empty
                     ? null
                     : bodyText + orText + attachmentText + emptyInputText,
+                controller: body,
+                onChanged: (value) => write.body = body.text,
               ),
-              controller: body,
-              onChanged: (value) => write.body = body.text,
             ),
             Align(
               alignment: AlignmentDirectional.topEnd,
@@ -339,23 +310,13 @@ class WriteSignature extends HookWidget {
         padding: const EdgeInsets.all(8),
         child: Stack(
           children: [
-            TextField(
-              style: mainTextStyle,
-              maxLines: null,
-              decoration: const InputDecoration(
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: CustomTextField.multi(
                 labelText: signatureText,
-                isDense: true,
-                filled: false,
-                border: UnderlineInputBorder(),
-                contentPadding: EdgeInsets.only(
-                  left: 16,
-                  top: 16,
-                  right: 16,
-                  bottom: 4,
-                ),
+                controller: signature,
+                onChanged: (value) => write.signature = signature.text,
               ),
-              controller: signature,
-              onChanged: (value) => write.signature = signature.text,
             ),
             Align(
               alignment: AlignmentDirectional.topEnd,
