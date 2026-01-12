@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 
-import '../app/utils.dart';
-import '../services/data_store.dart';
 import 'settings_data.dart';
 import 'settings_dialog.dart';
 
@@ -14,10 +11,7 @@ class SettingsBlockList extends SettingsTileBase {
     final colorScheme = Theme.of(context).colorScheme;
     final list = getSetting<List>(group, settings['setting']);
     final enabled = useEnabledBy();
-    final listenable = useMemoized(
-      () => DataValue.changed.where((e) => e?.$1 == settingKey, null),
-    );
-    useListenable(listenable);
+    useSettingListenable();
     return ListTile(
       dense: true,
       enabled: enabled,

@@ -34,7 +34,6 @@ class ImageData {
 }
 
 class WriteStore {
-  Map<String, dynamic>? identity;
   String name = '';
   String email = '';
   String subject = '';
@@ -51,6 +50,7 @@ class WriteStore {
   String? error;
   bool succuss = false;
 
+  final identity = ValueNotifier<Map<String, dynamic>?>(null);
   final postData = ValueNotifier<PostData?>(null);
   final images = ValueNotifier(<ImageData>[]);
   final selectedFile = ValueNotifier<ImageData?>(null);
@@ -76,7 +76,7 @@ class WriteStore {
     final ids = getSetting<List>('group', 'identities');
     final gid = getSetting<Map>('group', 'groupIdentitiy');
     if (gid.containsKey(_group?.data.group ?? '')) {
-      identity = ids.firstWhereOrNull(
+      identity.value = ids.firstWhereOrNull(
         (e) => e['name'] == gid[_group!.data.group],
       );
     }
@@ -110,7 +110,7 @@ class WriteStore {
     final nameExist = ids.any((e) => e['name'] == name);
     sendable.value =
         !succuss &&
-        (identity != null ||
+        (identity.value != null ||
             !nameExist && name.isNotEmpty && email.isNotEmpty) &&
         subject.isNotEmpty &&
         (body.isNotEmpty || images.value.isNotEmpty);
@@ -203,13 +203,13 @@ class WriteStore {
     error = null;
     sending.value = true;
 
-    final n = identity == null ? name : identity!['name'];
-    final e = identity == null ? email : identity!['email'];
-    final s = identity == null ? signature : identity!['signature'];
+    final id =
+        identity.value ??
+        {'name': name, 'email': email, 'signature': signature};
 
     var content = body;
-    if (enableSignature && s.isNotEmpty) {
-      content += '\n\n--\n$s';
+    if (enableSignature && id['signature'].isNotEmpty) {
+      content += '\n\n--\n${id['signature']}';
     }
     if (enableQuote && quote.isNotEmpty) {
       content +=
@@ -225,7 +225,7 @@ class WriteStore {
     }
 
     final sendData = {
-      'From': '$n <$e>',
+      'From': '${id['name']} <${id['email']}>',
       'Subject': subject,
       'Newsgroups': group,
       'References': references,
@@ -242,7 +242,7 @@ class WriteStore {
       error = '$writeErrorText$colonText${res['error']}';
     } else {
       succuss = true;
-      if (identity == null) {
+      if (identity.value == null) {
         setSetting('group', 'identities', [
           ...getSetting<List>('group', 'identities'),
           {'name': name, 'email': email, 'signature': signature},
@@ -250,7 +250,7 @@ class WriteStore {
       }
       setSetting('group', 'groupIdentitiy', {
         ...getSetting<Map>('group', 'groupIdentitiy'),
-        group: n,
+        group: id['name'],
       });
     }
     sending.value = false;

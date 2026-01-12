@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../app/const.dart';
 import '../app/utils.dart';
 import '../settings/settings_data.dart';
+import '../widgets/custom_dialog.dart';
 import '../widgets/custom_text_field.dart';
 import 'write_store.dart';
 
@@ -30,7 +30,6 @@ class WriteDialog extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context).appBarTheme;
     final write = Modular.get<WriteStore>();
     final sendable =
@@ -70,76 +69,43 @@ class WriteDialog extends HookWidget {
         ).then((_) => context.mounted ? Navigator.maybePop(context) : ());
       }
     });
-    return Dialog(
-      insetPadding: EdgeInsets.all(8),
+    return CustomDialog(
+      messengerKey: messengerKey,
       constraints: BoxConstraints(minWidth: 600, maxWidth: 800),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
-        borderRadius: BorderRadiusGeometry.circular(8),
+      title: write.getTitle(),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: Opacity(
+          opacity: !sendable ? 0.3 : 1.0,
+          child: FloatingActionButton.small(
+            onPressed: !sendable ? null : write.send,
+            child: Icon(Icons.send),
+          ),
+        ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadiusGeometry.circular(8),
-        child: ScaffoldMessenger(
-          key: messengerKey,
-          child: PointerInterceptor(
-            child: Scaffold(
-              backgroundColor: colorScheme.surfaceContainerHigh,
-              appBar: AppBar(
-                toolbarHeight: kToolbarHeight - 12,
-                automaticallyImplyLeading: false,
-                title: Text(write.getTitle()),
-                actions: [
-                  CloseButton(
-                    style: IconButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                  ),
+      child: Scrollbar(
+        controller: scrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        thickness: 8,
+        child: CustomScrollView(
+          controller: scrollController,
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
+              sliver: SuperSliverList.list(
+                children: [
+                  const WriteIdentity(),
+                  if (write.postData.value == null) const WriteSubject(),
+                  const WriteContent(),
+                  const WriteSignature(),
+                  if (write.postData.value != null) const WriteQuote(),
+                  const WriteAttachment(),
+                  const SizedBox(height: 66),
                 ],
-                bottom: const PreferredSize(
-                  preferredSize: Size.fromHeight(1),
-                  child: Divider(height: 1),
-                ),
-              ),
-              floatingActionButton: Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Opacity(
-                  opacity: !sendable ? 0.3 : 1.0,
-                  child: FloatingActionButton.small(
-                    onPressed: !sendable ? null : write.send,
-                    child: Icon(Icons.send),
-                  ),
-                ),
-              ),
-              body: Scrollbar(
-                controller: scrollController,
-                thumbVisibility: true,
-                trackVisibility: true,
-                thickness: 8,
-                child: CustomScrollView(
-                  controller: scrollController,
-                  slivers: [
-                    SliverPadding(
-                      padding: EdgeInsets.only(top: 4, left: 4, right: 12 + 4),
-                      sliver: SuperSliverList.list(
-                        children: [
-                          const WriteIdentity(),
-                          if (write.postData.value == null)
-                            const WriteSubject(),
-                          const WriteContent(),
-                          const WriteSignature(),
-                          if (write.postData.value != null) const WriteQuote(),
-                          const WriteAttachment(),
-                          const SizedBox(height: 66),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -154,15 +120,18 @@ class WriteIdentity extends HookWidget {
     final write = Modular.get<WriteStore>();
     final name = useTextEditingController(text: write.name);
     final email = useTextEditingController(text: write.email);
-    final identity = useState(write.identity);
     final ids = getSetting<List>('group', 'identities');
     final nameExist = ids.any((e) => e['name'] == name.text);
     final empty = name.text.isEmpty && email.text.isEmpty;
     useListenable(name);
     useListenable(email);
+    useListenable(write.identity);
     useValueChanged(empty, (_, void _) => write.updateSendable());
     useValueChanged(nameExist, (_, void _) => write.updateSendable());
-    useValueChanged(identity.value, (_, void _) => write.updateSendable());
+    useValueChanged(
+      write.identity.value,
+      (_, void _) => write.updateSendable(),
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
@@ -175,7 +144,7 @@ class WriteIdentity extends HookWidget {
               child: DropdownButtonFormField(
                 isExpanded: true,
                 padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                initialValue: identity.value,
+                initialValue: write.identity.value,
                 decoration: InputDecoration(
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
@@ -195,11 +164,11 @@ class WriteIdentity extends HookWidget {
                   ),
                 ],
                 onChanged: (newValue) {
-                  identity.value = write.identity = newValue;
+                  write.identity.value = newValue;
                 },
               ),
             ),
-            if (write.identity == null) ...[
+            if (write.identity.value == null) ...[
               CustomTextField(
                 labelText: nameText,
                 errorText: nameExist
@@ -305,6 +274,13 @@ class WriteSignature extends HookWidget {
     final signature = useTextEditingController(text: write.signature);
     final enable = useState(write.enableSignature);
     useListenable(signature);
+    useListenable(write.identity);
+    useValueChanged(
+      write.identity.value,
+      (_, void _) => signature.text = write.identity.value == null
+          ? write.signature
+          : write.identity.value!['signature'],
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
@@ -313,6 +289,7 @@ class WriteSignature extends HookWidget {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: CustomTextField.multi(
+                enabled: write.identity.value == null,
                 labelText: signatureText,
                 controller: signature,
                 onChanged: (value) => write.signature = signature.text,

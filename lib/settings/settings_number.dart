@@ -25,6 +25,7 @@ class SettingsNumber extends SettingsTileBase {
     }
 
     final enabled = useEnabledBy();
+    useSettingListenable();
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onHorizontalDragStart: (_) => delta.value = 0.0,

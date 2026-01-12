@@ -16,6 +16,7 @@ class SettingsSwitch extends SettingsTileBase {
     }
 
     final enabled = useEnabledBy();
+    useSettingListenable();
     return ListTile(
       dense: true,
       enabled: enabled,

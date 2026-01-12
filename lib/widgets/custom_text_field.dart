@@ -11,6 +11,7 @@ class CustomTextField extends StatelessWidget {
     this.onChanged,
     this.contentPadding,
     this.maxLines = 1,
+    this.enabled = true,
   });
 
   const CustomTextField.multi({
@@ -20,6 +21,7 @@ class CustomTextField extends StatelessWidget {
     this.errorText,
     this.onChanged,
     this.contentPadding,
+    this.enabled = true,
   }) : maxLines = null;
 
   final TextEditingController controller;
@@ -28,6 +30,7 @@ class CustomTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final EdgeInsetsGeometry? contentPadding;
   final int? maxLines;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +38,7 @@ class CustomTextField extends StatelessWidget {
       style: mainTextStyle,
       minLines: 1,
       maxLines: maxLines,
+      enabled: enabled,
       decoration: InputDecoration(
         isDense: true,
         filled: false,

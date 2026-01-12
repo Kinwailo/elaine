@@ -1,9 +1,8 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 import '../app/const.dart';
-import '../app/utils.dart';
-import '../services/data_store.dart';
 import '../widgets/custom_dialog.dart';
 import '../widgets/custom_text_field.dart';
 import 'settings_data.dart';
@@ -14,80 +13,97 @@ class SettingsIdentities extends SettingsTileBase {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final list = getSetting<List>(group, settings['setting']);
-    final listenable = useMemoized(
-      () => DataValue.changed.where((e) => e?.$1 == settingKey, null),
-    );
-    useListenable(listenable);
+    final enabled = useEnabledBy();
+    useSettingListenable();
     return ListTile(
       dense: true,
+      enabled: enabled,
       contentPadding: EdgeInsets.only(left: 12),
       onTap: () {},
       title: Text(settings['name']),
       subtitle: list.isEmpty
           ? null
-          : Theme(
-              data: ThemeData.from(
-                colorScheme: colorScheme,
-                useMaterial3: false,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Wrap(
-                  spacing: -4,
-                  runSpacing: 0,
-                  children: list
-                      .map(
-                        (e) => Transform.scale(
-                          scale: 0.8,
-                          child: InputChip(
-                            backgroundColor: colorScheme.secondaryContainer,
-                            selectedColor: colorScheme.tertiaryContainer,
-                            labelPadding: EdgeInsets.only(left: 6, right: 4),
-                            label: Text('${e["name"]} <${e["email"]}>'),
-                            tooltip: e["signature"],
-                            onPressed: () => IdentityDialog.show(context),
-                            onDeleted: () {
-                              final list = getSetting<List>(
-                                group,
-                                settings['setting'],
-                              );
-                              setSetting(group, settings['setting'], [
-                                ...list.where((b) => b != e),
-                              ]);
-                            },
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
+          : Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Wrap(
+                spacing: -4,
+                runSpacing: 0,
+                children: list
+                    .map((e) => IdentityChip(group, settings, e))
+                    .toList(),
               ),
             ),
     );
   }
 }
 
-class IdentityDialog extends HookWidget {
-  const IdentityDialog({super.key});
+class IdentityChip extends HookWidget {
+  const IdentityChip(this.group, this.settings, this.data, {super.key});
 
-  static Future<void> show(BuildContext context) async {
-    showDialog(
+  final String group;
+  final SettingsItem settings;
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final list = getSetting<List>(group, settings['setting']);
+    return Transform.scale(
+      scale: 0.8,
+      child: Theme(
+        data: ThemeData.from(colorScheme: colorScheme, useMaterial3: false),
+        child: InputChip(
+          backgroundColor: colorScheme.secondaryContainer,
+          selectedColor: colorScheme.tertiaryContainer,
+          labelPadding: EdgeInsets.only(left: 6, right: 4),
+          label: Text('${data["name"]} <${data["email"]}>'),
+          tooltip: data["signature"],
+          onPressed: () async {
+            final edit = await IdentityDialog.show(context, data);
+            if (edit == null) return;
+            setSetting(group, settings['setting'], [
+              ...list.map((id) => id != data ? id : edit),
+            ]);
+          },
+          onDeleted: () {
+            setSetting(group, settings['setting'], [
+              ...list.where((id) => id != data),
+            ]);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class IdentityDialog extends HookWidget {
+  const IdentityDialog(this.data, {super.key});
+
+  static Future<Map<String, dynamic>?> show(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) async {
+    return await showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (_) {
-        return IdentityDialog();
+        return IdentityDialog(data);
       },
     );
   }
 
+  final Map<String, dynamic> data;
+
   @override
   Widget build(BuildContext context) {
-    final name = useTextEditingController(text: '');
-    final email = useTextEditingController(text: '');
-    final signature = useTextEditingController(text: '');
+    final name = useTextEditingController(text: data['name']);
+    final email = useTextEditingController(text: data['email']);
+    final signature = useTextEditingController(text: data['signature']);
     final ids = getSetting<List>('group', 'identities');
-    final nameExist = ids.any((e) => e['name'] == name.text);
+    final nameExist = ids
+        .whereNot((e) => e['name'] == data['name'])
+        .any((e) => e['name'] == name.text);
     useListenable(name);
     useListenable(email);
     return CustomDialog.simple(
@@ -109,7 +125,6 @@ class IdentityDialog extends HookWidget {
               controller: name,
             ),
             CustomTextField(
-              contentPadding: EdgeInsets.symmetric(vertical: 4),
               labelText: emailText,
               errorText: email.text.isNotEmpty
                   ? null
@@ -117,7 +132,6 @@ class IdentityDialog extends HookWidget {
               controller: email,
             ),
             CustomTextField(
-              contentPadding: EdgeInsets.symmetric(vertical: 4),
               labelText: signatureText,
               maxLines: 5,
               controller: signature,
@@ -127,11 +141,15 @@ class IdentityDialog extends HookWidget {
               spacing: 8,
               children: [
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => Navigator.maybePop(context, {
+                    'name': name.text,
+                    'email': email.text,
+                    'signature': signature.text,
+                  }),
                   child: Text(MaterialLocalizations.of(context).okButtonLabel),
                 ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => Navigator.maybePop(context),
                   child: Text(
                     MaterialLocalizations.of(context).cancelButtonLabel,
                   ),
