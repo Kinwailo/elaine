@@ -8,6 +8,7 @@ import '../services/data_store.dart';
 import '../widgets/custom_dialog.dart';
 import 'settings_block_list.dart';
 import 'settings_data.dart';
+import 'settings_group_identity.dart';
 import 'settings_identities.dart';
 import 'settings_number.dart';
 import 'settings_switch.dart';
@@ -75,6 +76,7 @@ class SettingsGroup extends HookWidget {
                       const (int) => SettingsNumber(group, e),
                       _ => switch (e['setting']) {
                         'identities' => SettingsIdentities(group, e),
+                        'groupIdentitiy' => SettingsGroupIdentity(group, e),
                         'blockList' => SettingsBlockList(group, e),
                         _ => null,
                       },

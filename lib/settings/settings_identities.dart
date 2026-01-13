@@ -62,14 +62,18 @@ class IdentityChip extends HookWidget {
           onPressed: () async {
             final edit = await IdentityDialog.show(context, data);
             if (edit == null) return;
-            setSetting(group, settings['setting'], [
-              ...list.map((id) => id != data ? id : edit),
-            ]);
+            setSetting(
+              group,
+              settings['setting'],
+              list.map((id) => id != data ? id : edit).toList(),
+            );
           },
           onDeleted: () {
-            setSetting(group, settings['setting'], [
-              ...list.where((id) => id != data),
-            ]);
+            setSetting(
+              group,
+              settings['setting'],
+              list.where((id) => id != data).toList(),
+            );
           },
         ),
       ),

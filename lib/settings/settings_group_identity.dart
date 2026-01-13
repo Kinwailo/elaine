@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 
+import '../home/group_store.dart';
 import 'settings_data.dart';
 import 'settings_dialog.dart';
 
-class SettingsBlockList extends SettingsTileBase {
-  const SettingsBlockList(super.group, super.settings, {super.key});
+class SettingsGroupIdentity extends SettingsTileBase {
+  const SettingsGroupIdentity(super.group, super.settings, {super.key});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final list = getSetting<List>(group, settings['setting']);
+    final groups = Modular.get<GroupStore>();
+    final map = getSetting<Map>(group, settings['setting']);
     final enabled = useEnabledBy();
     useSettingListenable();
     return ListTile(
@@ -18,7 +21,7 @@ class SettingsBlockList extends SettingsTileBase {
       contentPadding: EdgeInsets.only(left: 12),
       onTap: () {},
       title: Text(settings['name']),
-      subtitle: list.isEmpty
+      subtitle: map.isEmpty
           ? null
           : Theme(
               data: ThemeData.from(
@@ -30,7 +33,8 @@ class SettingsBlockList extends SettingsTileBase {
                 child: Wrap(
                   spacing: -4,
                   runSpacing: 0,
-                  children: list
+                  children: map.entries
+                      .where((e) => groups.get(e.key) != null)
                       .map(
                         (e) => Transform.scale(
                           scale: 0.8,
@@ -38,12 +42,16 @@ class SettingsBlockList extends SettingsTileBase {
                             isEnabled: enabled,
                             backgroundColor: colorScheme.secondaryContainer,
                             labelPadding: EdgeInsets.only(left: 6, right: 4),
-                            label: Text(e),
+                            label: Text(
+                              '${groups.get(e.key)!.data.name}: ${e.value}',
+                            ),
                             onDeleted: () {
                               setSetting(
                                 group,
                                 settings['setting'],
-                                list.where((b) => b != e).toList(),
+                                Map.fromEntries(
+                                  map.entries.where((r) => r.key != e.key),
+                                ),
                               );
                             },
                           ),
