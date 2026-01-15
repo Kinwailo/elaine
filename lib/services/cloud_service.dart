@@ -16,7 +16,7 @@ typedef SyncPostsData = Map<String, Future<Post?>>;
 
 class CloudService {
   final client = Client()
-      .setEndpoint('https://sgp.cloud.appwrite.io/v1')
+      .setEndpoint('https://appwrite.kinwai.top/v1')
       .setProject('elaine');
   late final tablesDB = TablesDB(client);
   late final storage = Storage(client);
